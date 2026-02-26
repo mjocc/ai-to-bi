@@ -3,8 +3,10 @@ import React from "react";
 
 import { IconSymbol } from "@/components/icon-symbol";
 import { Pressable } from "react-native";
+import { test } from "@/services/classify_larvae_test";
 
 export default function TabLayout() {
+  test();
   return (
     <Tabs
       screenOptions={{
