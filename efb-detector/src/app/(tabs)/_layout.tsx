@@ -4,9 +4,12 @@ import React from "react";
 import { IconSymbol } from "@/components/icon-symbol";
 import { Pressable } from "react-native";
 import { test } from "@/services/classify_larvae_test";
+import { useEffect } from 'react';
 
 export default function TabLayout() {
-  test();
+  useEffect(() => {
+    test(); 
+  }, []);
   return (
     <Tabs
       screenOptions={{
