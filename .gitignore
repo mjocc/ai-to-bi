@@ -28,4 +28,4 @@ coverage/
 *.pem
 
 android/
-ios/
+ios/course_frame_detection/training_data/
