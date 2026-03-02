@@ -29,3 +29,6 @@ coverage/
 
 android/
 ios/course_frame_detection/training_data/
+
+__pycache__/
+*.pyc
