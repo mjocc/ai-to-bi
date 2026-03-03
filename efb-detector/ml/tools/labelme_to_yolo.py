@@ -1,28 +1,20 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
 import argparse
 import json
 import random
 import shutil
 from pathlib import Path
-from typing import Iterable
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+CLASS_ID = 0
+CLASS_NAME = "grub"
 
 
-def clamp(value: float, low: float, high: float) -> float:
-    return max(low, min(value, high))
+def clamp(value, min_value, max_value):
+    return max(min_value, min(value, max_value))
 
 
-def yolo_from_points(
-    x1: float,
-    y1: float,
-    x2: float,
-    y2: float,
-    width: int,
-    height: int,
-) -> tuple[float, float, float, float]:
+def corners_to_yolo(x1, y1, x2, y2, width, height):
     left = clamp(min(x1, x2), 0.0, float(width))
     right = clamp(max(x1, x2), 0.0, float(width))
     top = clamp(min(y1, y2), 0.0, float(height))
@@ -37,22 +29,22 @@ def yolo_from_points(
     return cx / width, cy / height, box_w / width, box_h / height
 
 
-def iter_images(input_dir: Path) -> Iterable[Path]:
+def find_images(input_dir):
     for path in sorted(input_dir.iterdir()):
         if path.is_file() and path.suffix.lower() in IMAGE_EXTS:
             yield path
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Convert LabelMe rectangles to YOLO labels")
-    parser.add_argument("--input-dir", required=True, help="Directory containing images + LabelMe json")
-    parser.add_argument("--output-dir", required=True, help="Directory to write YOLO dataset")
-    parser.add_argument("--train-ratio", type=float, default=0.8, help="Train split ratio [0.0-1.0]")
-    parser.add_argument("--seed", type=int, default=42, help="Shuffle seed")
+def parse_args():
+    parser = argparse.ArgumentParser(description="Convert LabelMe rectangles to YOLO labels in .txt file")
+    parser.add_argument("--input-dir", required=True)
+    parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--train-ratio", type=float, default=0.8)
+    parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()
 
 
-def main() -> None:
+def main():
     args = parse_args()
 
     input_dir = Path(args.input_dir)
@@ -62,7 +54,7 @@ def main() -> None:
     if not input_dir.exists():
         raise FileNotFoundError(f"Input dir does not exist: {input_dir}")
 
-    images = list(iter_images(input_dir))
+    images = list(find_images(input_dir))
     if not images:
         raise RuntimeError(f"No images found in: {input_dir}")
 
@@ -99,7 +91,7 @@ def main() -> None:
             skipped += 1
             continue
 
-        yolo_lines: list[str] = []
+        yolo_lines = []
         shapes = payload.get("shapes", [])
 
         for shape in shapes:
@@ -111,11 +103,11 @@ def main() -> None:
             x1, y1 = float(p1[0]), float(p1[1])
             x2, y2 = float(p2[0]), float(p2[1])
 
-            cx, cy, bw, bh = yolo_from_points(x1, y1, x2, y2, width, height)
+            cx, cy, bw, bh = corners_to_yolo(x1, y1, x2, y2, width, height)
             if bw <= 0.0 or bh <= 0.0:
                 continue
 
-            yolo_lines.append(f"0 {cx:.6f} {cy:.6f} {bw:.6f} {bh:.6f}")
+            yolo_lines.append(f"{CLASS_ID} {cx:.6f} {cy:.6f} {bw:.6f} {bh:.6f}")
 
         split = "train" if image_path in train_set else "val"
         dest_image = (image_train_dir if split == "train" else image_val_dir) / image_path.name
@@ -134,7 +126,7 @@ def main() -> None:
                 "val: images/val",
                 "",
                 "nc: 1",
-                "names: ['grub']",
+                f"names: ['{CLASS_NAME}']",
                 "",
             ]
         ),
