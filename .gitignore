@@ -32,3 +32,9 @@ ios/course_frame_detection/training_data/
 
 __pycache__/
 *.pyc
+
+efb-detector/ml/yolo_dataset_base/
+efb-detector/ml/yolo_dataset_tiles/
+
+runs/
+*.pt
