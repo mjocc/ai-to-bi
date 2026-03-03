@@ -1,7 +1,10 @@
 import { Stack } from "expo-router";
-import { Linking, StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, Text, TextInput, View } from "react-native";
+import { useBeeStore } from "../store/useBeeStore";
 
 export default function SettingsScreen() {
+  const { bkaEmail, setBkaEmail } = useBeeStore();
+
   return (
     <View style={styles.container}>
       <Stack.Screen
@@ -10,9 +13,20 @@ export default function SettingsScreen() {
         }}
       />
 
-      <Text style={{ color: "red", fontSize: 20 }}>
-        TODO: add box to enter BKA email address here and any other settings
+      <Text style={styles.header}>Local Association Contact</Text>
+      <Text style={styles.text}>
+        Enter the email address of your local Beekeepers Association (BKA) to
+        quickly contact them.
       </Text>
+      <TextInput
+        style={styles.input}
+        value={bkaEmail}
+        onChangeText={setBkaEmail}
+        placeholder="e.g. secretary@localbka.org"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
 
       <Text style={styles.header}>Privacy</Text>
 
@@ -75,4 +89,13 @@ const styles = StyleSheet.create({
   text: { color: "#333", marginBottom: 6, fontSize: 16 },
   smallText: { color: "#333", marginBottom: 6 },
   link: { color: "#007AFF", textDecorationLine: "underline", marginBottom: 4 },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 15,
+    borderRadius: 8,
+    fontSize: 16,
+    marginBottom: 10,
+    backgroundColor: "#f9f9f9",
+  },
 });

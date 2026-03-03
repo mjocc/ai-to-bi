@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 import React from "react";
 import {
+  Alert,
   Linking,
   Pressable,
   ScrollView,
@@ -8,13 +9,32 @@ import {
   Text,
   View,
 } from "react-native";
+import { useBeeStore } from "../../store/useBeeStore";
 
 export default function EFBInfoScreen() {
+  const { bkaEmail } = useBeeStore();
+
   const handleEmailNBU = () => {
     // TODO: ideally would also include images of the hive that we have stored
     const subject = "Suspected EFB case";
     const url = `mailto:nbu@apha.gov.uk?subject=${encodeURIComponent(subject)}`;
 
+    Linking.openURL(url).catch((err) =>
+      console.error("Failed to open email client", err)
+    );
+  };
+
+  const handleEmailBKA = () => {
+    if (!bkaEmail) {
+      Alert.alert(
+        "No Email Set",
+        "Please set your Local Beekeepers Association email in the Settings screen first."
+      );
+      return;
+    }
+
+    const subject = "Suspected EFB case";
+    const url = `mailto:${bkaEmail}?subject=${encodeURIComponent(subject)}`;
     Linking.openURL(url).catch((err) =>
       console.error("Failed to open email client", err)
     );
@@ -71,13 +91,17 @@ export default function EFBInfoScreen() {
           </Pressable>
 
           <Pressable
-            style={[styles.button, styles.localButton]}
-            onPress={() =>
-              alert("Local Association contact not yet implemented -- TODO")
-            }
+            style={[
+              styles.button,
+              styles.localButton,
+              !bkaEmail && styles.disabledButton,
+            ]}
+            onPress={handleEmailBKA}
           >
             <Text style={styles.buttonText}>Contact Local Association</Text>
-            <Text style={styles.buttonSubtext}>TODO Beekeepers' Assoc</Text>
+            <Text style={styles.buttonSubtext}>
+              {bkaEmail ? `Email: ${bkaEmail}` : "Not set"}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -113,6 +137,7 @@ const styles = StyleSheet.create({
   button: { padding: 20, borderRadius: 12, alignItems: "center" },
   nbuButton: { backgroundColor: "#E9B44C" },
   localButton: { backgroundColor: "#333" },
+  disabledButton: { backgroundColor: "#999" },
   buttonText: { fontSize: 18, fontWeight: "bold", color: "#fff" },
   buttonSubtext: { fontSize: 12, color: "#fff", opacity: 0.8, marginTop: 4 },
 });

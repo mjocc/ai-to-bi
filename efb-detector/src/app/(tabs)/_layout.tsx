@@ -3,13 +3,8 @@ import React from "react";
 
 import { IconSymbol } from "@/components/icon-symbol";
 import { Pressable } from "react-native";
-import { test } from "@/services/classify_larvae_test";
-import { useEffect } from 'react';
 
 export default function TabLayout() {
-  useEffect(() => {
-    test(); 
-  }, []);
   return (
     <Tabs
       screenOptions={{
@@ -39,18 +34,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="hives/index"
+        name="hives"
         options={{
           title: "Hives",
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="circle.grid.hex" color={color} />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="hives/[hiveId]"
-        options={{
-          href: null,
         }}
       />
     </Tabs>
