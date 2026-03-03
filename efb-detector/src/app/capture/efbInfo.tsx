@@ -79,8 +79,6 @@ export default function EFBInfoScreen() {
           </Text>
         </Pressable>
 
-        {/* TODO: add bee inspector contact? or does it just go through NBU? */}
-
         <View style={styles.actionContainer}>
           <Pressable
             style={[styles.button, styles.nbuButton]}
