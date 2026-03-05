@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
 import argparse
-import ast
 import random
 import shutil
 from pathlib import Path
@@ -10,34 +7,36 @@ from pathlib import Path
 from PIL import Image
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+CLASS_NAMES = ["grub"]
+CLASS_COUNT = 1
 
 
-def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Tile a YOLO dataset with overlap")
-    p.add_argument("--input-dir", required=True, help="YOLO dataset dir containing images/, labels/, data.yaml")
-    p.add_argument("--output-dir", required=True, help="Output tiled dataset dir")
+def parse_args():
+    p = argparse.ArgumentParser(description="Tile YOLO dataset to 640x640")
+    p.add_argument("--input-dir", required=True)
+    p.add_argument("--output-dir", required=True)
     p.add_argument("--tile-size", type=int, default=640)
-    p.add_argument("--overlap", type=float, default=0.25, help="0.0 to <1.0")
+    p.add_argument("--overlap", type=float, default=0.25)
     p.add_argument("--train-keep-prob", type=float, default=1.0, help="Randomly keep train tiles")
     p.add_argument("--seed", type=int, default=42)
     return p.parse_args()
 
 
-def clamp(v: float, lo: float, hi: float) -> float:
-    return max(lo, min(v, hi))
+def clamp(value, min_value, max_value):
+    return max(min_value, min(value, max_value))
 
 
-def tile_starts(length: int, tile: int, step: int) -> list[int]:
-    if length <= tile:
+def tile_start_positions(length, tile_size, stride):
+    if length <= tile_size:
         return [0]
-    out = list(range(0, max(1, length - tile + 1), step))
-    last = length - tile
-    if out[-1] != last:
-        out.append(last)
-    return out
+    starts = list(range(0, max(1, length - tile_size + 1), stride))
+    final_start = length - tile_size
+    if starts[-1] != final_start:
+        starts.append(final_start)
+    return starts
 
 
-def read_labels(path: Path, w: int, h: int) -> list[tuple[float, float, float, float]]:
+def read_labels(path, image_w, image_h):
     if not path.exists():
         return []
     boxes = []
@@ -47,26 +46,20 @@ def read_labels(path: Path, w: int, h: int) -> list[tuple[float, float, float, f
             continue
         _, cx, cy, bw, bh = parts
         cx, cy, bw, bh = float(cx), float(cy), float(bw), float(bh)
-        x1 = (cx - bw / 2.0) * w
-        y1 = (cy - bh / 2.0) * h
-        x2 = (cx + bw / 2.0) * w
-        y2 = (cy + bh / 2.0) * h
+        x1 = (cx - bw / 2.0) * image_w
+        y1 = (cy - bh / 2.0) * image_h
+        x2 = (cx + bw / 2.0) * image_w
+        y2 = (cy + bh / 2.0) * image_h
         boxes.append((x1, y1, x2, y2))
     return boxes
 
 
-def box_to_tile_label(
-    box: tuple[float, float, float, float],
-    tx0: int,
-    ty0: int,
-    tw: int,
-    th: int,
-) -> tuple[float, float, float, float] | None:
+def box_to_tile_label(box, tx0, ty0, tw, th):
     x1, y1, x2, y2 = box
-    cx = (x1 + x2) / 2.0
-    cy = (y1 + y2) / 2.0
+    center_x = (x1 + x2) / 2.0
+    center_y = (y1 + y2) / 2.0
 
-    if not (tx0 <= cx < tx0 + tw and ty0 <= cy < ty0 + th):
+    if not (tx0 <= center_x < tx0 + tw and ty0 <= center_y < ty0 + th):
         return None
 
     nx1 = clamp(x1 - tx0, 0.0, float(tw))
@@ -87,14 +80,14 @@ def box_to_tile_label(
 
 
 def process_split(
-    split: str,
-    input_dir: Path,
-    output_dir: Path,
-    tile_size: int,
-    overlap: float,
-    train_keep_prob: float,
-    rng: random.Random,
-) -> tuple[int, int]:
+    split,
+    input_dir,
+    output_dir,
+    tile_size,
+    overlap,
+    train_keep_prob,
+    rng,
+):
     in_img = input_dir / "images" / split
     in_lbl = input_dir / "labels" / split
     out_img = output_dir / "images" / split
@@ -102,7 +95,7 @@ def process_split(
     out_img.mkdir(parents=True, exist_ok=True)
     out_lbl.mkdir(parents=True, exist_ok=True)
 
-    step = max(1, int(tile_size * (1.0 - overlap)))
+    stride = max(1, int(tile_size * (1.0 - overlap)))
     tiles_written = 0
     labels_written = 0
 
@@ -111,19 +104,19 @@ def process_split(
             continue
 
         img = Image.open(img_path).convert("RGB")
-        w, h = img.size
-        boxes = read_labels(in_lbl / f"{img_path.stem}.txt", w, h)
+        image_w, image_h = img.size
+        boxes = read_labels(in_lbl / f"{img_path.stem}.txt", image_w, image_h)
 
-        xs = tile_starts(w, tile_size, step)
-        ys = tile_starts(h, tile_size, step)
+        x_starts = tile_start_positions(image_w, tile_size, stride)
+        y_starts = tile_start_positions(image_h, tile_size, stride)
 
-        for y0 in ys:
-            for x0 in xs:
+        for y0 in y_starts:
+            for x0 in x_starts:
                 if split == "train" and rng.random() > train_keep_prob:
                     continue
 
-                x1 = min(w, x0 + tile_size)
-                y1 = min(h, y0 + tile_size)
+                x1 = min(image_w, x0 + tile_size)
+                y1 = min(image_h, y0 + tile_size)
                 tw = x1 - x0
                 th = y1 - y0
 
@@ -147,28 +140,7 @@ def process_split(
     return tiles_written, labels_written
 
 
-def read_nc_names(data_yaml: Path) -> tuple[int, list[str]]:
-    nc = 1
-    names: list[str] = ["grub"]
-    for line in data_yaml.read_text(encoding="utf-8").splitlines():
-        s = line.strip()
-        if s.startswith("nc:"):
-            try:
-                nc = int(s.split(":", 1)[1].strip())
-            except ValueError:
-                pass
-        elif s.startswith("names:"):
-            raw = s.split(":", 1)[1].strip()
-            try:
-                parsed = ast.literal_eval(raw)
-                if isinstance(parsed, list) and parsed:
-                    names = [str(x) for x in parsed]
-            except (SyntaxError, ValueError):
-                pass
-    return nc, names
-
-
-def main() -> None:
+def main():
     args = parse_args()
 
     input_dir = Path(args.input_dir)
@@ -182,8 +154,6 @@ def main() -> None:
     if output_dir.exists():
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    nc, names = read_nc_names(input_dir / "data.yaml")
 
     rng = random.Random(args.seed)
     t_train, l_train = process_split(
@@ -199,8 +169,8 @@ def main() -> None:
                 "train: images/train",
                 "val: images/val",
                 "",
-                f"nc: {nc}",
-                f"names: {names}",
+                f"nc: {CLASS_COUNT}",
+                f"names: {CLASS_NAMES}",
                 "",
             ]
         ),
