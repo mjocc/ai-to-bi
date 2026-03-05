@@ -10,15 +10,11 @@ CLASS_ID = 0
 CLASS_NAME = "grub"
 
 
-def clamp(value, min_value, max_value):
-    return max(min_value, min(value, max_value))
-
-
 def corners_to_yolo(x1, y1, x2, y2, width, height):
-    left = clamp(min(x1, x2), 0.0, float(width))
-    right = clamp(max(x1, x2), 0.0, float(width))
-    top = clamp(min(y1, y2), 0.0, float(height))
-    bottom = clamp(max(y1, y2), 0.0, float(height))
+    left = max(0.0, min(float(width), min(x1, x2)))
+    right = max(0.0, min(float(width), max(x1, x2)))
+    top = max(0.0, min(float(height), min(y1, y2)))
+    bottom = max(0.0, min(float(height), max(y1, y2)))
 
     box_w = max(0.0, right - left)
     box_h = max(0.0, bottom - top)
@@ -36,7 +32,7 @@ def find_images(input_dir):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Convert LabelMe rectangles to YOLO labels in .txt file")
+    parser = argparse.ArgumentParser()
     parser.add_argument("--input-dir", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--train-ratio", type=float, default=0.8)
@@ -49,7 +45,7 @@ def main():
 
     input_dir = Path(args.input_dir)
     output_dir = Path(args.output_dir)
-    train_ratio = clamp(float(args.train_ratio), 0.0, 1.0)
+    train_ratio = max(0.0, min(1.0, float(args.train_ratio)))
 
     if not input_dir.exists():
         raise FileNotFoundError(f"Input dir does not exist: {input_dir}")
@@ -69,7 +65,7 @@ def main():
     label_train_dir = output_dir / "labels" / "train"
     label_val_dir = output_dir / "labels" / "val"
 
-    for d in [image_train_dir, image_val_dir, label_train_dir, label_val_dir]:
+    for d in (image_train_dir, image_val_dir, label_train_dir, label_val_dir):
         d.mkdir(parents=True, exist_ok=True)
 
     converted = 0

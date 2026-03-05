@@ -6,7 +6,7 @@ from ultralytics import YOLO
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Export YOLO model to TFLite for React Expo app")
+    p = argparse.ArgumentParser()
     p.add_argument("--model", required=True)
     p.add_argument("--imgsz", type=int, default=640)
     p.add_argument("--half", action="store_true")

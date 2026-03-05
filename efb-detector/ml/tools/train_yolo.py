@@ -6,13 +6,13 @@ from ultralytics import YOLO
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Train YOLO on tiled larvae dataset")
+    parser = argparse.ArgumentParser()
     parser.add_argument("--data", required=True)
     parser.add_argument("--weights", default="yolo11n.pt")
     parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--batch", type=int, default=4)
-    parser.add_argument("--device", default="cpu", help="cpu, mps, cuda:0, etc")
+    parser.add_argument("--device", default="cpu")
     parser.add_argument("--project", default="runs")
     parser.add_argument("--name", default="grub-detector")
     parser.add_argument("--workers", type=int, default=4)

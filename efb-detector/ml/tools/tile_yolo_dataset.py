@@ -12,12 +12,12 @@ CLASS_COUNT = 1
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Tile YOLO dataset to 640x640")
+    p = argparse.ArgumentParser()
     p.add_argument("--input-dir", required=True)
     p.add_argument("--output-dir", required=True)
     p.add_argument("--tile-size", type=int, default=640)
     p.add_argument("--overlap", type=float, default=0.25)
-    p.add_argument("--train-keep-prob", type=float, default=1.0, help="Randomly keep train tiles")
+    p.add_argument("--train-keep-prob", type=float, default=1.0)
     p.add_argument("--seed", type=int, default=42)
     return p.parse_args()
 
@@ -79,15 +79,7 @@ def box_to_tile_label(box, tx0, ty0, tw, th):
     return tcx, tcy, tbw, tbh
 
 
-def process_split(
-    split,
-    input_dir,
-    output_dir,
-    tile_size,
-    overlap,
-    train_keep_prob,
-    rng,
-):
+def process_split(split, input_dir, output_dir, tile_size, overlap, train_keep_prob, rng):
     in_img = input_dir / "images" / split
     in_lbl = input_dir / "labels" / split
     out_img = output_dir / "images" / split
