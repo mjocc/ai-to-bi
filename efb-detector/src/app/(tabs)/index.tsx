@@ -1,7 +1,29 @@
-import { Link } from "expo-router";
+import { Link, useFocusEffect, useRouter } from "expo-router";
+import { Accelerometer } from "expo-sensors";
+import { useCallback, useRef } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 export default function Index() {
+  const router = useRouter();
+  const lastShake = useRef(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      Accelerometer.setUpdateInterval(100);
+      const subscription = Accelerometer.addListener(({ x, y, z }) => {
+        const magnitude = Math.sqrt(x * x + y * y + z * z);
+        const now = Date.now();
+        if (magnitude > 1.8 && now - lastShake.current > 1000) {
+          lastShake.current = now;
+          router.push("/capture");
+        }
+      });
+      return () => {
+        subscription.remove();
+      };
+    }, [])
+  );
+
   return (
     <View style={styles.container}>
       <Image
@@ -20,6 +42,10 @@ export default function Index() {
           <Text style={styles.buttonText}>Start a scan</Text>
         </Pressable>
       </Link>
+
+      <Text style={styles.shakeNote}>
+        Tip: You can also shake the device to start a scan.
+      </Text>
 
       <Link href="/capture/efbInfo" asChild>
         <Pressable style={styles.linkContainer}>
@@ -71,6 +97,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  shakeNote: {
+    color: "#666",
+    marginTop: 15,
+    fontSize: 14,
   },
   linkContainer: {
     marginTop: 20,
