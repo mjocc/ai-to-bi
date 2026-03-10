@@ -17,14 +17,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { getImageUri, useStore } from "../../../store";
+import { getImageUri, useBeeStore as useStore } from "@/store/useBeeStore";
 
 const screenWidth = Dimensions.get("window").width;
 const THRESHOLD = 80;
 
 export default function ResultsScreen() {
   const router = useRouter();
-  const { getScansWithImageNames, images, updateImageName, initializeData } = useStore();
+  const { getScansWithImageNames, images, updateImageName, initializeData } =
+    useStore();
 
   const [editName, setEditName] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
@@ -35,9 +36,10 @@ export default function ResultsScreen() {
   }, []);
 
   const scansWithNames = getScansWithImageNames();
-  const latestScan = scansWithNames.length > 0
-    ? scansWithNames[scansWithNames.length - 1]
-    : null;
+  const latestScan =
+    scansWithNames.length > 0
+      ? scansWithNames[scansWithNames.length - 1]
+      : null;
 
   const latestImage = latestScan
     ? images.find((img) => img.ImageID === latestScan.ImageID) ?? null
@@ -92,14 +94,19 @@ export default function ResultsScreen() {
                 resizeMode="cover"
               />
             </View>
-            <View style={[styles.confidenceBadge, { borderColor: confidenceColor }]}>
+            <View
+              style={[styles.confidenceBadge, { borderColor: confidenceColor }]}
+            >
               <Text style={styles.confidenceLabel}>Varroa Confidence</Text>
-              <Text style={[styles.confidenceValue, { color: confidenceColor }]}>
+              <Text
+                style={[styles.confidenceValue, { color: confidenceColor }]}
+              >
                 {confidenceLabel}
               </Text>
               {latestScan.Confidence > THRESHOLD && (
                 <Text style={styles.warningNote}>
-                  This scan exceeds the {THRESHOLD}% threshold. Consider treatment.
+                  This scan exceeds the {THRESHOLD}% threshold. Consider
+                  treatment.
                 </Text>
               )}
             </View>
@@ -113,7 +120,10 @@ export default function ResultsScreen() {
                 editable
               />
             </View>
-            <TouchableOpacity style={styles.renameButton} onPress={openEditModal}>
+            <TouchableOpacity
+              style={styles.renameButton}
+              onPress={openEditModal}
+            >
               <Text style={styles.renameButtonText}>✎ Rename This Scan</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -154,7 +164,9 @@ export default function ResultsScreen() {
                 style={[styles.modalButton, styles.modalSave]}
                 onPress={saveName}
               >
-                <Text style={[styles.modalButtonText, { color: "#fff" }]}>Save</Text>
+                <Text style={[styles.modalButtonText, { color: "#fff" }]}>
+                  Save
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
