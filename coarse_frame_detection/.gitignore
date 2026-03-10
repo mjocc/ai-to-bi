@@ -1,0 +1,79 @@
+# .gitignore for coarse_frame_detection
+# Ignore common Python artifacts, IDE files, macOS files, node modules, and large ML model artifacts
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+env.bak/
+pip-wheel-metadata/
+
+# macOS
+.DS_Store
+
+# VS Code / IDEs
+.vscode/
+*.code-workspace
+.idea/
+
+# Logs, test output
+*.log
+logs/
+*.tfevents*
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# pytest
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Secrets / environment
+.env
+.env.*
+secrets.json
+
+# Node
+node_modules/
+
+# Compiled objects
+*.so
+*.dylib
+
+# Thumbnails / system files
+Thumbs.db
+
+# Model and training artifacts (ignore large binaries and checkpoints)
+*.h5
+*.keras
+*.tflite
+*.pb
+checkpoint*
+model.*
+saved_model/
+
+# Also ignore common model subfolders under models/ (but allow config/metadata below)
+models/*/saved_model/
+models/*/checkpoint*
+models/*/variables/
+models/*/logs/
+models/*/*.h5
+models/*/*.keras
+models/*/*.tflite
+models/*/*.pb
+
+# Allow small metadata files you may want to keep in repo
+!models/frame_detector/config.json
+!models/frame_detector/training_history.png
+
+# Optionally ignore test model binary in repo root (uncomment if you don't want it tracked)
+# test_model.keras
