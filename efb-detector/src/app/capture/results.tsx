@@ -1,10 +1,11 @@
-//I'm not sure if this was what was wanted but it should show the results of the scan
-//Dodgy way of making it work by getting the results of the most recent scan saved to store
-//So will need saving to the store beforehand
-//Feel free to change / overwrite if you want
+/**
+ * capture/results.tsx
+ *
+ * Displays the stitched panorama from the most recent scan.
+ */
 
 import { Stack, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -17,57 +18,39 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { getImageUri, useStore } from "../../../store";
+import { useBeeStore } from "../../store/useBeeStore";
 
 const screenWidth = Dimensions.get("window").width;
-const THRESHOLD = 80;
+
+// const THRESHOLD = 80, or something;
 
 export default function ResultsScreen() {
   const router = useRouter();
-  const { getScansWithImageNames, images, updateImageName, initializeData } = useStore();
+  const { getLatestStitchedScan, updateScanName } = useBeeStore();
 
   const [editName, setEditName] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
-  const [initialized, setInitialized] = useState(false);
 
-  useEffect(() => {
-    initializeData().then(() => setInitialized(true));
-  }, []);
+  // TODO: wire up confidence (and everything else)
+  // const [confidence, setConfidence] = useState<number | null>(null);
 
-  const scansWithNames = getScansWithImageNames();
-  const latestScan = scansWithNames.length > 0
-    ? scansWithNames[scansWithNames.length - 1]
-    : null;
-
-  const latestImage = latestScan
-    ? images.find((img) => img.ImageID === latestScan.ImageID) ?? null
-    : null;
+  const scan = getLatestStitchedScan();
 
   const openEditModal = () => {
-    if (!latestImage) return;
-    setEditName(latestImage.ImageName);
+    if (!scan) return;
+    setEditName(scan.name ?? "");
     setShowEditModal(true);
   };
 
   const saveName = () => {
-    if (!latestImage) return;
+    if (!scan) return;
     if (!editName.trim()) {
       Alert.alert("Invalid name", "Name cannot be empty.");
       return;
     }
-    updateImageName(latestImage.ImageID, editName.trim());
+    updateScanName(scan.id, editName.trim());
     setShowEditModal(false);
   };
-
-  const confidenceColor =
-    latestScan && latestScan.Confidence > THRESHOLD ? "#D9534F" : "#4CAF50";
-
-  const confidenceLabel =
-    latestScan && latestScan.Confidence > THRESHOLD
-      ? `⚠️ High — ${latestScan.Confidence.toFixed(1)}%`
-      : latestScan
-      ? `✓ Normal — ${latestScan.Confidence.toFixed(1)}%`
-      : "—";
 
   return (
     <View style={styles.container}>
@@ -77,45 +60,45 @@ export default function ResultsScreen() {
         style={{ flex: 1, width: "100%" }}
         contentContainerStyle={styles.scrollContent}
       >
-        <Text style={styles.heading}>Most Recent Scan</Text>
+        <Text style={styles.heading}>Stitched Panorama</Text>
 
-        {!initialized || !latestScan || !latestImage ? (
+        {!scan ? (
           <Text style={styles.placeholder}>
-            No results yet. Scan a hive to get started.
+            No results yet. Record a hive to get started.
           </Text>
         ) : (
           <>
+            {/* Panorama image */}
             <View style={styles.imageWrapper}>
               <Image
-                source={{ uri: getImageUri(latestImage.ImageFileName) }}
+                source={{ uri: scan.panoramaUri }}
                 style={styles.image}
-                resizeMode="cover"
+                resizeMode="contain"
               />
             </View>
-            <View style={[styles.confidenceBadge, { borderColor: confidenceColor }]}>
-              <Text style={styles.confidenceLabel}>Varroa Confidence</Text>
-              <Text style={[styles.confidenceValue, { color: confidenceColor }]}>
-                {confidenceLabel}
+
+            <View style={styles.placeholderBadge}>
+              <Text style={styles.placeholderBadgeText}>
+                🐝 Placeholder
               </Text>
-              {latestScan.Confidence > THRESHOLD && (
-                <Text style={styles.warningNote}>
-                  This scan exceeds the {THRESHOLD}% threshold. Consider treatment.
-                </Text>
-              )}
             </View>
+
+            {/* Meta */}
             <View style={styles.metaCard}>
-              <Row label="Hive" value={`#${latestScan.HiveNo}`} />
-              <Row label="Date" value={latestImage.DateTaken} />
+              <Row label="Hive" value={`#${scan.hiveNo ?? "—"}`} />
+              <Row label="Date" value={scan.date} />
               <Row
                 label="Name"
-                value={latestImage.ImageName}
-                onPress={openEditModal}
+                value={scan.name || "Unnamed scan"}
                 editable
+                onPress={openEditModal}
               />
             </View>
+
             <TouchableOpacity style={styles.renameButton} onPress={openEditModal}>
               <Text style={styles.renameButtonText}>✎ Rename This Scan</Text>
             </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.continueButton}
               onPress={() => router.replace("/(tabs)")}
@@ -125,6 +108,8 @@ export default function ResultsScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Rename modal */}
       <Modal
         visible={showEditModal}
         transparent
@@ -154,7 +139,9 @@ export default function ResultsScreen() {
                 style={[styles.modalButton, styles.modalSave]}
                 onPress={saveName}
               >
-                <Text style={[styles.modalButtonText, { color: "#fff" }]}>Save</Text>
+                <Text style={[styles.modalButtonText, { color: "#fff" }]}>
+                  Save
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -163,6 +150,7 @@ export default function ResultsScreen() {
     </View>
   );
 }
+
 function Row({
   label,
   value,
@@ -189,6 +177,7 @@ function Row({
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -215,6 +204,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   imageWrapper: {
+    width: screenWidth - 40,
     borderRadius: 14,
     overflow: "hidden",
     shadowColor: "#000",
@@ -223,37 +213,27 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
     marginBottom: 20,
+    backgroundColor: "#111",
   },
   image: {
-    width: screenWidth - 40,
-    height: screenWidth - 40,
-  },
-  confidenceBadge: {
     width: "100%",
-    borderWidth: 2,
+    // fix height to avoid bad display
+    height: (screenWidth - 40) * 0.45,
+  },
+  placeholderBadge: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     marginBottom: 16,
     alignItems: "center",
     backgroundColor: "#fff",
   },
-  confidenceLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#888",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 4,
-  },
-  confidenceValue: {
-    fontSize: 22,
-    fontWeight: "800",
-  },
-  warningNote: {
-    marginTop: 8,
-    fontSize: 12,
-    color: "#D9534F",
-    textAlign: "center",
+  placeholderBadgeText: {
+    fontSize: 14,
+    color: "#999",
+    fontStyle: "italic",
   },
   metaCard: {
     width: "100%",
@@ -353,25 +333,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: "#333",
   },
-  modalButtons: {
-    flexDirection: "row",
-    gap: 10,
-  },
+  modalButtons: { flexDirection: "row", gap: 10 },
   modalButton: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: "center",
   },
-  modalCancel: {
-    backgroundColor: "#F0F0F0",
-  },
-  modalSave: {
-    backgroundColor: "#F6C24E",
-  },
-  modalButtonText: {
-    fontWeight: "600",
-    fontSize: 15,
-    color: "#555",
-  },
+  modalCancel: { backgroundColor: "#F0F0F0" },
+  modalSave: { backgroundColor: "#F6C24E" },
+  modalButtonText: { fontWeight: "600", fontSize: 15, color: "#555" },
 });

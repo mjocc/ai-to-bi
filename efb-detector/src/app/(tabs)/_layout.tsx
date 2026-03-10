@@ -1,10 +1,14 @@
 import { Link, Tabs } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
+import { test } from "@/services/classify_larvae_test";
 
 import { IconSymbol } from "@/components/icon-symbol";
 import { Pressable } from "react-native";
 
 export default function TabLayout() {
+  //useEffect(() => {
+  //    test();
+  //  }, []);
   return (
     <Tabs
       screenOptions={{
