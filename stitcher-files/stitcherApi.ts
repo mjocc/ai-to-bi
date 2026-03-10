@@ -4,17 +4,30 @@
  * Set STITCHER_BASE_URL to your machine's LAN IP, e.g. "http://192.168.1.42:8000"
  */
 
-const STITCHER_BASE_URL = "http://192.168.0.175:8000"; // update this
+const STITCHER_BASE_URL = "http://10.254.34.102:8000"; // update this
 
-export async function stitchVideo(videoUri: string): Promise<string> {
+export async function stitchVideo(
+  videoUri: string,
+  referenceUri?: string,
+): Promise<string> {
   console.log("Sending video URI:", videoUri);
+  if (referenceUri) console.log("Sending reference URI:", referenceUri);
 
   const formData = new FormData();
+
   formData.append("video", {
     uri: videoUri,
     name: "hive_recording.mp4",
     type: "video/mp4",
   } as any);
+
+  if (referenceUri) {
+    formData.append("reference", {
+      uri: referenceUri,
+      name: "hive_reference.jpg",
+      type: "image/jpeg",
+    } as any);
+  }
 
   let response: Response;
   try {
@@ -24,7 +37,7 @@ export async function stitchVideo(videoUri: string): Promise<string> {
     });
   } catch (e: any) {
     throw new Error(
-      `Could not reach stitcher at ${STITCHER_BASE_URL} - is the server running and on the same WiFi? (${e?.message})`
+      `Could not reach stitcher at ${STITCHER_BASE_URL} - is the server running and on the same WiFi? (${e?.message})`,
     );
   }
 

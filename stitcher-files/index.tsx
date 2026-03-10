@@ -1,21 +1,37 @@
+/**
+ * capture/index.tsx
+ *
+ * Step 1 of the capture flow: take a single wide photo of the entire hive
+ * frame before the close-up video scan.  The photo URI is stored in the bee
+ * store and forwarded to the stitcher API as an alignment reference.
+ *
+ * Navigation:
+ *   → capture/record  (the video recording screen)
+ */
+
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
-import { StyleSheet, Text, Pressable, View, ActivityIndicator } from "react-native";
+import * as React from "react";
+import { useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { stitchVideo } from "../../services/stitcherApi";
 import { useBeeStore } from "../../store/useBeeStore";
 
-type RecordingState = "idle" | "recording" | "processing";
-
-export default function CaptureScreen() {
+export default function ReferenceScreen() {
   const [permission, requestPermission] = useCameraPermissions();
-  const [recordingState, setRecordingState] = useState<RecordingState>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [capturing, setCapturing] = useState(false);
   const cameraRef = useRef<CameraView>(null);
-  const recordingPromise = useRef<Promise<{ uri: string } | undefined> | null>(null);
   const router = useRouter();
-  const { addStitchedScan } = useBeeStore();
+  const { setReferencePhoto } = useBeeStore();
 
   if (!permission) return <View style={styles.center} />;
 
@@ -23,7 +39,7 @@ export default function CaptureScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.permissionText}>
-          We need camera access to scan frames.
+          We need camera access to capture the reference photo.
         </Text>
         <Pressable style={styles.grantButton} onPress={requestPermission}>
           <Text style={styles.grantButtonText}>Grant Permission</Text>
@@ -32,120 +48,118 @@ export default function CaptureScreen() {
     );
   }
 
-  const startRecording = () => {
-    if (!cameraRef.current || recordingState !== "idle") return;
-    setError(null);
-    setRecordingState("recording");
-
-    // recordAsync resolves with { uri } once stopRecording() is called.
-    // We store the promise here.
-    recordingPromise.current = cameraRef.current.recordAsync({ maxDuration: 30 });
-  };
-
-  const stopAndProcess = async () => {
-    if (!cameraRef.current || recordingState !== "recording") return;
-    setRecordingState("processing");
-
+  const takePhoto = async () => {
+    if (!cameraRef.current || capturing) return;
+    setCapturing(true);
     try {
-      // resolves the recordAsync promise above
-      cameraRef.current.stopRecording();
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.85,
+        exif: true,
+      });
 
-      const video = await recordingPromise.current;
-      recordingPromise.current = null;
+      if (!photo?.uri) return;
 
-      if (!video?.uri) throw new Error("No video URI returned from camera.");
+      // expo-camera always returns sensor-native (portrait) pixels regardless
+      // of device orientation, but writes the correct EXIF orientation tag.
+      // We rotate the image to match what was shown on screen.
+      const orientation: number = photo.exif?.Orientation ?? 1;
+      let rotation = 0;
+      if (orientation === 3) rotation = 180;
+      else if (orientation === 6) rotation = 90;
+      else if (orientation === 8) rotation = 270;
 
-      const panoramaUri = await stitchVideo(video.uri);
-
-      addStitchedScan({ panoramaUri });
-
-      router.replace("/capture/results");
-    } catch (e: any) {
-      console.error("Stitching failed:", e);
-      setError(e?.message ?? "Stitching failed. Please try again.");
-      setRecordingState("idle");
+      if (rotation !== 0) {
+        const rotated = await manipulateAsync(
+          photo.uri,
+          [{ rotate: rotation }],
+          { compress: 0.85, format: SaveFormat.JPEG },
+        );
+        setPhotoUri(rotated.uri);
+      } else {
+        setPhotoUri(photo.uri);
+      }
+    } catch (e) {
+      console.error("Reference photo failed:", e);
+    } finally {
+      setCapturing(false);
     }
   };
 
-  const isProcessing = recordingState === "processing";
-  const isRecording = recordingState === "recording";
+  const retake = () => setPhotoUri(null);
 
+  const proceed = () => {
+    setReferencePhoto(photoUri ?? null);
+    router.replace("/capture/record");
+  };
+
+  // ── preview state ──────────────────────────────────────────────────────────
+  if (photoUri) {
+    return (
+      <View style={styles.container}>
+        <Image
+          source={{ uri: photoUri }}
+          style={StyleSheet.absoluteFillObject}
+          resizeMode="contain"
+        />
+
+        <SafeAreaView style={styles.overlay} pointerEvents="box-none">
+          <View style={styles.topBar}>
+            <Text style={styles.previewLabel}>Reference Photo</Text>
+          </View>
+
+          <View style={styles.bottomBar}>
+            <Pressable style={styles.secondaryButton} onPress={retake}>
+              <Text style={styles.secondaryButtonText}>Retake</Text>
+            </Pressable>
+            <Pressable style={styles.primaryButton} onPress={proceed}>
+              <Text style={styles.primaryButtonText}>Use & Start Recording →</Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  // ── viewfinder state ───────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
       <CameraView
         ref={cameraRef}
         style={StyleSheet.absoluteFillObject}
         facing="back"
-        mode="video"
-        mute
       />
 
       <SafeAreaView style={styles.overlay} pointerEvents="box-none">
-        {/* Top bar */}
         <View style={styles.topBar}>
-          {!isProcessing && (
-            <Pressable
-              style={styles.backButton}
-              onPress={() => router.back()}
-              disabled={isRecording}
-            >
-              <Text style={[styles.backButtonText, isRecording && styles.dimmed]}>
-                Cancel
-              </Text>
-            </Pressable>
-          )}
-          {isRecording && (
-            <View style={styles.recordingIndicator}>
-              <View style={styles.recordingDot} />
-              <Text style={styles.recordingText}>Recording</Text>
-            </View>
-          )}
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>Cancel</Text>
+          </Pressable>
         </View>
 
-        {/* Instruction */}
-        {!isProcessing && (
-          <View style={styles.instructionWrap} pointerEvents="none">
-            <Text style={styles.instructionText}>
-              {isRecording
-                ? "Pan slowly across the hive frame, then tap Stop."
-                : "Tap Record and pan across the hive frame."}
-            </Text>
-          </View>
-        )}
+        <View style={styles.instructionWrap} pointerEvents="none">
+          <Text style={styles.instructionText}>
+            Step back so the entire hive frame fits in the shot, then take a photo.
+          </Text>
+        </View>
 
-        {/* Processing overlay */}
-        {isProcessing && (
-          <View style={styles.processingOverlay} pointerEvents="none">
-            <ActivityIndicator size="large" color="#E9B44C" />
-            <Text style={styles.processingText}>Stitching panorama…</Text>
-            <Text style={styles.processingSubText}>This may take a few seconds.</Text>
-          </View>
-        )}
-
-        {/* Error */}
-        {error && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
-
-        {/* Bottom controls */}
-        {!isProcessing && (
-          <View style={styles.bottomBar}>
-            {!isRecording ? (
-              <Pressable style={styles.captureOuter} onPress={startRecording}>
-                <View style={styles.captureInner} />
-              </Pressable>
+        <View style={styles.bottomBar}>
+          <Pressable
+            style={styles.captureOuter}
+            onPress={takePhoto}
+            disabled={capturing}
+          >
+            {capturing ? (
+              <ActivityIndicator color="#E9B44C" />
             ) : (
-              <Pressable style={styles.stopOuter} onPress={stopAndProcess}>
-                <View style={styles.stopInner} />
-              </Pressable>
+              <View style={styles.captureInner} />
             )}
-            <Text style={styles.buttonLabel}>
-              {isRecording ? "Stop" : "Record"}
-            </Text>
-          </View>
-        )}
+          </Pressable>
+          <Text style={styles.buttonLabel}>Photo</Text>
+
+          <Pressable style={styles.skipButton} onPress={proceed}>
+            <Text style={styles.skipButtonText}>Skip →</Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -163,8 +177,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: "space-between",
   },
-
-  // Top
   topBar: {
     padding: 20,
     flexDirection: "row",
@@ -178,26 +190,15 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   backButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  dimmed: { opacity: 0.4 },
-
-  recordingIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.55)",
+  previewLabel: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    backgroundColor: "rgba(0,0,0,0.5)",
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 20,
   },
-  recordingDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#E74C3C",
-    marginRight: 7,
-  },
-  recordingText: { color: "#fff", fontWeight: "700", fontSize: 14 },
-
-  // Instruction
   instructionWrap: {
     alignItems: "center",
     paddingHorizontal: 40,
@@ -212,42 +213,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     overflow: "hidden",
   },
-
-  // Processing
-  processingOverlay: {
-    flex: 1,
-    justifyContent: "center",
+  bottomBar: {
+    paddingBottom: 40,
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
-  processingText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  processingSubText: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 13,
-  },
-
-  // Error
-  errorBanner: {
-    marginHorizontal: 24,
-    backgroundColor: "rgba(200,50,50,0.85)",
-    borderRadius: 10,
-    padding: 12,
-  },
-  errorText: { color: "#fff", fontSize: 14, textAlign: "center" },
-
-  // Bottom
-  bottomBar: { paddingBottom: 40, alignItems: "center", gap: 8 },
   buttonLabel: {
     color: "rgba(255,255,255,0.8)",
     fontSize: 13,
     fontWeight: "600",
   },
-
-  // Record button (start)
   captureOuter: {
     width: 76,
     height: 76,
@@ -263,26 +238,33 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     backgroundColor: "#E9B44C",
   },
-
-  // Stop button
-  stopOuter: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 4,
-    borderColor: "#E74C3C",
-    justifyContent: "center",
+  skipButton: {
+    marginTop: 4,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+  },
+  skipButtonText: { color: "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: "600" },
+  secondaryButton: {
+    backgroundColor: "rgba(0,0,0,0.55)",
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: 10,
+    width: "80%",
     alignItems: "center",
   },
-  stopInner: {
-    width: 32,
-    height: 32,
-    borderRadius: 4,
-    backgroundColor: "#E74C3C",
+  secondaryButtonText: { color: "#fff", fontWeight: "600", fontSize: 15 },
+  primaryButton: {
+    backgroundColor: "#E9B44C",
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: 10,
+    width: "80%",
+    alignItems: "center",
   },
-
-  // Permission
-  permissionText: { fontSize: 16, marginBottom: 20, textAlign: "center" },
+  primaryButtonText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  permissionText: { fontSize: 16, marginBottom: 20, textAlign: "center", paddingHorizontal: 32 },
   grantButton: { backgroundColor: "#E9B44C", padding: 15, borderRadius: 8 },
   grantButtonText: { color: "#fff", fontWeight: "bold" },
 });
