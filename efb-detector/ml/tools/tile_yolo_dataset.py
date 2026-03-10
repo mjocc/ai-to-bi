@@ -188,9 +188,9 @@ def tile_split(in_img, in_lbl, out_img, out_lbl, rng):
             flip_h = rng.random() < FLIP_PROB
             flip_v = rng.random() < FLIP_PROB
             if flip_h:
-                tile = tile.transpose(Image.FLIP_LEFT_RIGHT)
+                tile = tile.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
             if flip_v:
-                tile = tile.transpose(Image.FLIP_TOP_BOTTOM)
+                tile = tile.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
             tile, rot = random_rotate(tile, rng, ROTATE_PROB)
 
             labels = []
