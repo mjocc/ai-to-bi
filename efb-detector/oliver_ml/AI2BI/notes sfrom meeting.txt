@@ -1,0 +1,8 @@
+- Slumped is bad
+- Add "shake bees off please" instruction
+- Lay it flat and use flashlight to avoid backlit colours (see image i.shgcdn.jpg in validation)
+- Ignore trachea as feature
+- Ignore translucent images
+
+Sophia's email is skpd2@cam.ac.uk
+- Send reminder email for vids of frames for Sophia and healthy frame images for me

@@ -46,18 +46,18 @@ export default function ResultsScreen() {
     : null;
 
   const openEditModal = () => {
-    if (!scan) return;
-    setEditName(scan.name ?? "");
+    if (!latestScan) return;
+    setEditName(latestScan.ImageName ?? "");
     setShowEditModal(true);
   };
 
   const saveName = () => {
-    if (!scan) return;
+    if (!latestScan) return;
     if (!editName.trim()) {
       Alert.alert("Invalid name", "Name cannot be empty.");
       return;
     }
-    updateScanName(scan.id, editName.trim());
+    updateImageName(latestScan.ImageID, editName.trim());
     setShowEditModal(false);
   };
 
@@ -71,7 +71,7 @@ export default function ResultsScreen() {
       >
         <Text style={styles.heading}>Stitched Panorama</Text>
 
-        {!scan ? (
+        {!latestScan ? (
           <Text style={styles.placeholder}>
             No results yet. Record a hive to get started.
           </Text>
@@ -80,7 +80,7 @@ export default function ResultsScreen() {
             {/* Panorama image */}
             <View style={styles.imageWrapper}>
               <Image
-                source={{ uri: scan.panoramaUri }}
+                source={{ uri: latestScan.panoramaUri }}
                 style={styles.image}
                 resizeMode="contain"
               />
