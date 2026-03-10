@@ -1,35 +1,37 @@
 import { IconSymbol } from "@/components/icon-symbol";
 import { Link } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-
-// TODO: make this use proper data from Zustand
-const MOCK_HIVES = [
-  {
-    id: "1",
-    name: "North Apiary - Hive A",
-    lastScan: "2024-05-10",
-    numFrames: 10,
-  },
-  {
-    id: "2",
-    name: "North Apiary - Hive B",
-    lastScan: "2024-05-10",
-    numFrames: 8,
-  },
-  { id: "3", name: "Cambridge Orchard", lastScan: "2024-05-08", numFrames: 12 },
-  { id: "4", name: "River Side", lastScan: "2024-05-01", numFrames: 9 },
-];
+import { useStore } from "../../../../store";
 
 export default function HivesScreen() {
-  const renderItem = ({ item }: { item: (typeof MOCK_HIVES)[0] }) => (
-    <Link href={`/hives/${item.id}`} asChild>
+  const { getDistinctHiveNumbers, getScansByHive, initializeData } = useStore();
+
+  useEffect(() => {
+    initializeData();
+  }, []);
+
+  const hiveNumbers = getDistinctHiveNumbers();
+
+  const hives = hiveNumbers.map((hiveNo) => {
+    const scans = getScansByHive(hiveNo);
+    const lastScan = scans.length > 0 ? scans[scans.length - 1].DateTaken : null;
+    return {
+      id: String(hiveNo),
+      hiveNo,
+      lastScan: lastScan ? new Date(lastScan).toLocaleDateString() : "No scans yet",
+      numScans: scans.length,
+    };
+  });
+
+  const renderItem = ({ item }: { item: typeof hives[0] }) => (
+    <Link href={`/hives/${item.hiveNo}`} asChild>
       <Pressable style={styles.card}>
         <View style={styles.cardInfo}>
-          <Text style={styles.hiveName}>{item.name}</Text>
+          <Text style={styles.hiveName}>Hive {item.hiveNo}</Text>
           <View style={styles.cardInfoDetails}>
-            <Text style={styles.date}>{item.lastScan}</Text>
-            <Text style={styles.date}>{item.numFrames} frames</Text>
+            <Text style={styles.date}>Last scan: {item.lastScan}</Text>
+            <Text style={styles.date}>{item.numScans} scan{item.numScans !== 1 ? "s" : ""}</Text>
           </View>
         </View>
         <IconSymbol size={20} name="chevron.right" color="#ccc" />
@@ -41,7 +43,7 @@ export default function HivesScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Your Hives</Text>
       <FlatList
-        data={MOCK_HIVES}
+        data={hives}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}

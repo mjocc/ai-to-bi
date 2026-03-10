@@ -161,7 +161,7 @@ export default function HiveScreen() {
   };
 
   const clearOldestScan = () => {
-    const scans = getScansByHive(hiveNo); // already sorted oldest first
+    const scans = getScansByHive(hiveNo);
     if (scans.length === 0) return;
     Alert.alert(
       "Clear Oldest Scan",
@@ -228,7 +228,6 @@ export default function HiveScreen() {
                   ⚠️ One or more scans exceed the {THRESHOLD}% confidence threshold!
                 </Text>
               )}
-              {/* @ts-ignore react-native-chart-kit type compatibility */}
               <LineChart
                 data={sparseChartData}
                 width={screenWidth - 32}
@@ -300,7 +299,7 @@ export default function HiveScreen() {
         </View>
       )}
 
-      {/* Fullscreen image modal */}
+      {/* Fullscreen image*/}
       {fullscreenImage && (
         <Modal visible animationType="fade" onRequestClose={() => setFullscreenImage(null)}>
           <View style={styles.fullscreenContainer}>
@@ -324,7 +323,7 @@ export default function HiveScreen() {
         </Modal>
       )}
 
-      {/* Rename modal */}
+      {/* Rename*/}
       <Modal
         visible={!!editingImage}
         transparent
@@ -359,7 +358,7 @@ export default function HiveScreen() {
         </View>
       </Modal>
 
-      {/* Sort modal */}
+      {/* Sort */}
       <Modal
         visible={showSortModal}
         transparent

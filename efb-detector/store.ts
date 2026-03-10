@@ -10,9 +10,6 @@ export type Scan = {
 
 export type ImageRecord = {
   ImageID: number;
-  // Only the filename is stored (e.g. "scan_001.jpg"), NOT the full URI.
-  // The full path can change between app installs, so we reconstruct it at
-  // runtime using getImageUri(). This prevents stale URIs after reinstalls.
   ImageFileName: string;
   ImageName: string;
   DateTaken: string;
@@ -22,7 +19,7 @@ export type ImageRecord = {
   yco2: number;
 };
 
-// Reconstruct the full file:// URI from just the filename at runtime
+// Creates full file path from filename at runtime
 export const getImageUri = (fileName: string): string =>
   new File(new Directory(Paths.document, "scans"), fileName).uri;
 
@@ -30,14 +27,11 @@ type StoreState = {
   scans: Scan[];
   images: ImageRecord[];
 
-  // Actions
   initializeData: () => Promise<void>;
   addScan: (scan: Omit<Scan, "ScanID">) => void;
   addImage: (image: Omit<ImageRecord, "ImageID">) => void;
   updateImageName: (imageID: number, newName: string) => void;
   deleteImage: (imageID: number) => void;
-
-  // Derived helpers
   getScansWithImageNames: () => (Scan & { ImageName: string })[];
   getImagesWithHive: () => (ImageRecord & { HiveNo: number })[];
   getDistinctHiveNumbers: () => number[];
@@ -49,7 +43,6 @@ export const useStore = create<StoreState>((set, get) => ({
   images: [],
 
   initializeData: async () => {
-    // Ensure the scans directory exists on first launch
     const scansDir = new Directory(Paths.document, "scans");
     if (!scansDir.exists) {
       scansDir.create();
@@ -79,8 +72,7 @@ export const useStore = create<StoreState>((set, get) => ({
       ),
     })),
 
-  // Note: this only removes the record from the store.
-  // The caller is responsible for deleting the file from disk via expo-file-system.
+
   deleteImage: (imageID) =>
     set((state) => ({
       images: state.images.filter((img) => img.ImageID !== imageID),
