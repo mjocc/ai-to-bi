@@ -36,8 +36,5 @@ __pycache__/
 runs/
 efb-detector/ml/yolo_dataset_base/
 efb-detector/ml/yolo_dataset_tiles/
-efb-detector/grub-yolo-v1/
-efb-detector/ml/grub_location
-efb-detector/ml/nectar
-
+efb-detector/ml/grub_dataset
 *.pt

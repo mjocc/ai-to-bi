@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-import argparse
 import json
 import random
 import shutil
 from pathlib import Path
+
+INPUT_DIR = Path("ml/grub_dataset")
+OUTPUT_DIR = Path("ml/yolo_dataset_base")
+TRAIN_RATIO = 0.8
+SEED = 42
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 CLASS_ID = 0
@@ -31,21 +35,10 @@ def find_images(input_dir):
             yield path
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input-dir", required=True)
-    parser.add_argument("--output-dir", required=True)
-    parser.add_argument("--train-ratio", type=float, default=0.8)
-    parser.add_argument("--seed", type=int, default=42)
-    return parser.parse_args()
-
-
 def main():
-    args = parse_args()
-
-    input_dir = Path(args.input_dir)
-    output_dir = Path(args.output_dir)
-    train_ratio = max(0.0, min(1.0, float(args.train_ratio)))
+    input_dir = INPUT_DIR
+    output_dir = OUTPUT_DIR
+    train_ratio = max(0.0, min(1.0, float(TRAIN_RATIO)))
 
     if not input_dir.exists():
         raise FileNotFoundError(f"Input dir does not exist: {input_dir}")
@@ -54,7 +47,7 @@ def main():
     if not images:
         raise RuntimeError(f"No images found in: {input_dir}")
 
-    rng = random.Random(args.seed)
+    rng = random.Random(SEED)
     rng.shuffle(images)
 
     train_count = int(len(images) * train_ratio)
