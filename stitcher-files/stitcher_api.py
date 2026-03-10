@@ -5,7 +5,7 @@ Install:
     pip install fastapi uvicorn python-multipart opencv-python-headless numpy
 
 Run:
-    python -muvicorn stitcher_api:app --host 0.0.0.0 --port 8000
+    python -m uvicorn stitcher_api:app --host 0.0.0.0 --port 8000
 
 The app will be reachable from Expo at http://<your-machine-LAN-ip>:8000
 """
