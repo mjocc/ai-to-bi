@@ -2,7 +2,7 @@ import { IconSymbol } from "@/components/icon-symbol";
 import { Link } from "expo-router";
 import React, { useEffect } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import { useStore } from "../../../../store";
+import { useBeeStore as useStore } from "@/store/useBeeStore";
 
 export default function HivesScreen() {
   const { getDistinctHiveNumbers, getScansByHive, initializeData } = useStore();
@@ -15,23 +15,28 @@ export default function HivesScreen() {
 
   const hives = hiveNumbers.map((hiveNo) => {
     const scans = getScansByHive(hiveNo);
-    const lastScan = scans.length > 0 ? scans[scans.length - 1].DateTaken : null;
+    const lastScan =
+      scans.length > 0 ? scans[scans.length - 1].DateTaken : null;
     return {
       id: String(hiveNo),
       hiveNo,
-      lastScan: lastScan ? new Date(lastScan).toLocaleDateString() : "No scans yet",
+      lastScan: lastScan
+        ? new Date(lastScan).toLocaleDateString()
+        : "No scans yet",
       numScans: scans.length,
     };
   });
 
-  const renderItem = ({ item }: { item: typeof hives[0] }) => (
+  const renderItem = ({ item }: { item: (typeof hives)[0] }) => (
     <Link href={`/hives/${item.hiveNo}`} asChild>
       <Pressable style={styles.card}>
         <View style={styles.cardInfo}>
           <Text style={styles.hiveName}>Hive {item.hiveNo}</Text>
           <View style={styles.cardInfoDetails}>
             <Text style={styles.date}>Last scan: {item.lastScan}</Text>
-            <Text style={styles.date}>{item.numScans} scan{item.numScans !== 1 ? "s" : ""}</Text>
+            <Text style={styles.date}>
+              {item.numScans} scan{item.numScans !== 1 ? "s" : ""}
+            </Text>
           </View>
         </View>
         <IconSymbol size={20} name="chevron.right" color="#ccc" />

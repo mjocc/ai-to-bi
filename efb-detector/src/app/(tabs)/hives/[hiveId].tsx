@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
-import { getImageUri, useStore } from "../../../../store";
+import { getImageUri, useBeeStore as useStore } from "@/store/useBeeStore";
 
 const screenWidth = Dimensions.get("window").width;
 const IMAGE_SIZE = (screenWidth - 48) / 2;
@@ -25,7 +25,8 @@ const CHART_BOTTOM_PADDING = 30;
 const THRESHOLD = 80;
 const THRESHOLD_TOP =
   CHART_TOP_PADDING +
-  (CHART_HEIGHT - CHART_TOP_PADDING - CHART_BOTTOM_PADDING) * (1 - THRESHOLD / 100);
+  (CHART_HEIGHT - CHART_TOP_PADDING - CHART_BOTTOM_PADDING) *
+    (1 - THRESHOLD / 100);
 
 type ChartData = {
   labels: string[];
@@ -44,14 +45,29 @@ export default function HiveScreen() {
   const { hiveId } = useLocalSearchParams<{ hiveId: string }>();
   const hiveNo = Number(hiveId);
 
-  const { getScansByHive, getImagesWithHive, updateImageName, initializeData, deleteImage } = useStore();
+  const {
+    getScansByHive,
+    getImagesWithHive,
+    updateImageName,
+    initializeData,
+    deleteImage,
+  } = useStore();
 
   const [activeView, setActiveView] = useState<ActiveView>("chart");
-  const [chartData, setChartData] = useState<ChartData>({ labels: [], datasets: [{ data: [] }] });
-  const [imageRecords, setImageRecords] = useState<(ReturnType<typeof getImagesWithHive>[number] & { Confidence: number })[]>([]);
-  const [editingImage, setEditingImage] = useState<ReturnType<typeof getImagesWithHive>[number] | null>(null);
+  const [chartData, setChartData] = useState<ChartData>({
+    labels: [],
+    datasets: [{ data: [] }],
+  });
+  const [imageRecords, setImageRecords] = useState<
+    (ReturnType<typeof getImagesWithHive>[number] & { Confidence: number })[]
+  >([]);
+  const [editingImage, setEditingImage] = useState<
+    ReturnType<typeof getImagesWithHive>[number] | null
+  >(null);
   const [editName, setEditName] = useState("");
-  const [fullscreenImage, setFullscreenImage] = useState<ReturnType<typeof getImagesWithHive>[number] | null>(null);
+  const [fullscreenImage, setFullscreenImage] = useState<
+    ReturnType<typeof getImagesWithHive>[number] | null
+  >(null);
   const [showSortModal, setShowSortModal] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>("date_desc");
 
@@ -72,7 +88,12 @@ export default function HiveScreen() {
       labels,
       datasets: [
         { data: data.length > 0 ? data : [0] },
-        { data: [100], color: () => "transparent", withDots: false, strokeWidth: 0 },
+        {
+          data: [100],
+          color: () => "transparent",
+          withDots: false,
+          strokeWidth: 0,
+        },
       ],
     });
   };
@@ -84,12 +105,15 @@ export default function HiveScreen() {
       .filter((img) => img.HiveNo === hiveNo)
       .map((img) => ({
         ...img,
-        Confidence: scans.find((s) => s.ImageID === img.ImageID)?.Confidence ?? 0,
+        Confidence:
+          scans.find((s) => s.ImageID === img.ImageID)?.Confidence ?? 0,
       }));
     setImageRecords(filtered);
   };
 
-  const openEditModal = (image: ReturnType<typeof getImagesWithHive>[number]) => {
+  const openEditModal = (
+    image: ReturnType<typeof getImagesWithHive>[number]
+  ) => {
     setEditingImage(image);
     setEditName(image.ImageName);
   };
@@ -110,11 +134,16 @@ export default function HiveScreen() {
     if (!fullscreenImage) return;
     const { status } = await MediaLibrary.requestPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission denied", "Please allow photo library access in your device settings to save images.");
+      Alert.alert(
+        "Permission denied",
+        "Please allow photo library access in your device settings to save images."
+      );
       return;
     }
     try {
-      await MediaLibrary.saveToLibraryAsync(getImageUri(fullscreenImage.ImageFileName));
+      await MediaLibrary.saveToLibraryAsync(
+        getImageUri(fullscreenImage.ImageFileName)
+      );
       Alert.alert("Saved", "Image saved to your photo library.");
     } catch {
       Alert.alert("Error", "Failed to save image.");
@@ -123,34 +152,47 @@ export default function HiveScreen() {
 
   const hasWarning = chartData.datasets[0].data.some((v) => v > THRESHOLD);
 
-  const sparseLabels = chartData.labels.length > 4
-    ? chartData.labels.map((label, i, arr) => {
-        if (i === 0) return label;
-        if (i === arr.length - 1) return label.length > 6 ? label.slice(0, 6) + "…" : label;
-        return "";
-      })
-    : chartData.labels;
+  const sparseLabels =
+    chartData.labels.length > 4
+      ? chartData.labels.map((label, i, arr) => {
+          if (i === 0) return label;
+          if (i === arr.length - 1)
+            return label.length > 6 ? label.slice(0, 6) + "…" : label;
+          return "";
+        })
+      : chartData.labels;
 
   const sparseChartData = { ...chartData, labels: sparseLabels };
 
   const sortedImages = [...imageRecords].sort((a, b) => {
     switch (sortOption) {
-      case "name_asc":  return a.ImageName.localeCompare(b.ImageName);
-      case "name_desc": return b.ImageName.localeCompare(a.ImageName);
-      case "date_asc":  return new Date(a.DateTaken).getTime() - new Date(b.DateTaken).getTime();
-      case "date_desc": return new Date(b.DateTaken).getTime() - new Date(a.DateTaken).getTime();
-      default: return 0;
+      case "name_asc":
+        return a.ImageName.localeCompare(b.ImageName);
+      case "name_desc":
+        return b.ImageName.localeCompare(a.ImageName);
+      case "date_asc":
+        return (
+          new Date(a.DateTaken).getTime() - new Date(b.DateTaken).getTime()
+        );
+      case "date_desc":
+        return (
+          new Date(b.DateTaken).getTime() - new Date(a.DateTaken).getTime()
+        );
+      default:
+        return 0;
     }
   });
 
-  const deleteSpecificScan = (img: typeof imageRecords[number]) => {
+  const deleteSpecificScan = (img: (typeof imageRecords)[number]) => {
     Alert.alert(
       "Delete Scan",
       `Delete "${img.ImageName}"? This cannot be undone.`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete", style: "destructive", onPress: () => {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
             deleteImage(img.ImageID);
             loadChart();
             loadImages();
@@ -169,7 +211,9 @@ export default function HiveScreen() {
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Remove", style: "destructive", onPress: () => {
+          text: "Remove",
+          style: "destructive",
+          onPress: () => {
             deleteImage(scans[0].ImageID);
             loadChart();
             loadImages();
@@ -188,7 +232,9 @@ export default function HiveScreen() {
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Clear All", style: "destructive", onPress: () => {
+          text: "Clear All",
+          style: "destructive",
+          onPress: () => {
             scans.forEach((s) => deleteImage(s.ImageID));
             loadChart();
             loadImages();
@@ -225,7 +271,8 @@ export default function HiveScreen() {
             <View style={styles.chartWrapper}>
               {hasWarning && (
                 <Text style={styles.warningText}>
-                  ⚠️ One or more scans exceed the {THRESHOLD}% confidence threshold!
+                  ⚠️ One or more scans exceed the {THRESHOLD}% confidence
+                  threshold!
                 </Text>
               )}
               <LineChart
@@ -245,10 +292,16 @@ export default function HiveScreen() {
 
           {/* Data management buttons */}
           <View style={styles.clearButtonRow}>
-            <TouchableOpacity style={styles.clearOldestButton} onPress={clearOldestScan}>
+            <TouchableOpacity
+              style={styles.clearOldestButton}
+              onPress={clearOldestScan}
+            >
               <Text style={styles.clearButtonText}>Clear Oldest</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.clearAllButton} onPress={clearAllScans}>
+            <TouchableOpacity
+              style={styles.clearAllButton}
+              onPress={clearAllScans}
+            >
               <Text style={styles.clearButtonText}>Clear All</Text>
             </TouchableOpacity>
           </View>
@@ -259,13 +312,18 @@ export default function HiveScreen() {
       {activeView === "images" && (
         <View style={styles.imagesContainer}>
           <View style={styles.sortRow}>
-            <TouchableOpacity style={styles.sortButton} onPress={() => setShowSortModal(true)}>
+            <TouchableOpacity
+              style={styles.sortButton}
+              onPress={() => setShowSortModal(true)}
+            >
               <Text style={styles.sortButtonText}>Sort ▼</Text>
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.imageGrid}>
             {sortedImages.length === 0 ? (
-              <Text style={styles.placeholder}>No images for this hive yet.</Text>
+              <Text style={styles.placeholder}>
+                No images for this hive yet.
+              </Text>
             ) : (
               sortedImages.map((img) => (
                 <View key={img.ImageID} style={styles.imageCard}>
@@ -280,10 +338,13 @@ export default function HiveScreen() {
                     <Text style={styles.imageName}>{img.ImageName} ✎</Text>
                   </TouchableOpacity>
                   <Text style={styles.imageDate}>{img.DateTaken}</Text>
-                  <Text style={[
-                    styles.imageConfidence,
-                    img.Confidence > THRESHOLD && styles.imageConfidenceWarning,
-                  ]}>
+                  <Text
+                    style={[
+                      styles.imageConfidence,
+                      img.Confidence > THRESHOLD &&
+                        styles.imageConfidenceWarning,
+                    ]}
+                  >
                     {img.Confidence.toFixed(1)}% confidence
                   </Text>
                   <TouchableOpacity
@@ -301,7 +362,11 @@ export default function HiveScreen() {
 
       {/* Fullscreen image*/}
       {fullscreenImage && (
-        <Modal visible animationType="fade" onRequestClose={() => setFullscreenImage(null)}>
+        <Modal
+          visible
+          animationType="fade"
+          onRequestClose={() => setFullscreenImage(null)}
+        >
           <View style={styles.fullscreenContainer}>
             <TouchableOpacity
               style={styles.fullscreenBackButton}
@@ -314,8 +379,12 @@ export default function HiveScreen() {
               style={styles.fullscreenImage}
               resizeMode="contain"
             />
-            <Text style={styles.fullscreenName}>{fullscreenImage.ImageName}</Text>
-            <Text style={styles.fullscreenMeta}>{fullscreenImage.DateTaken}</Text>
+            <Text style={styles.fullscreenName}>
+              {fullscreenImage.ImageName}
+            </Text>
+            <Text style={styles.fullscreenMeta}>
+              {fullscreenImage.DateTaken}
+            </Text>
             <TouchableOpacity style={styles.saveButton} onPress={saveToPhotos}>
               <Text style={styles.saveButtonText}>⬇ Save to Photos</Text>
             </TouchableOpacity>
@@ -370,18 +439,29 @@ export default function HiveScreen() {
             <Text style={styles.modalTitle}>Sort By</Text>
             {(
               [
-                { value: "name_asc",  label: "Name (A → Z)" },
+                { value: "name_asc", label: "Name (A → Z)" },
                 { value: "name_desc", label: "Name (Z → A)" },
-                { value: "date_asc",  label: "Date (Oldest first)" },
+                { value: "date_asc", label: "Date (Oldest first)" },
                 { value: "date_desc", label: "Date (Newest first)" },
               ] as { value: SortOption; label: string }[]
             ).map((opt) => (
               <TouchableOpacity
                 key={opt.value}
-                style={[styles.sortOption, sortOption === opt.value && styles.sortOptionActive]}
-                onPress={() => { setSortOption(opt.value); setShowSortModal(false); }}
+                style={[
+                  styles.sortOption,
+                  sortOption === opt.value && styles.sortOptionActive,
+                ]}
+                onPress={() => {
+                  setSortOption(opt.value);
+                  setShowSortModal(false);
+                }}
               >
-                <Text style={[styles.sortOptionText, sortOption === opt.value && styles.sortOptionTextActive]}>
+                <Text
+                  style={[
+                    styles.sortOptionText,
+                    sortOption === opt.value && styles.sortOptionTextActive,
+                  ]}
+                >
                   {opt.label}
                 </Text>
               </TouchableOpacity>
@@ -393,18 +473,34 @@ export default function HiveScreen() {
       {/* Bottom toggle */}
       <View style={styles.toggleContainer}>
         <TouchableOpacity
-          style={[styles.toggleButton, activeView === "chart" && styles.toggleButtonActive]}
+          style={[
+            styles.toggleButton,
+            activeView === "chart" && styles.toggleButtonActive,
+          ]}
           onPress={() => setActiveView("chart")}
         >
-          <Text style={[styles.toggleText, activeView === "chart" && styles.toggleTextActive]}>
+          <Text
+            style={[
+              styles.toggleText,
+              activeView === "chart" && styles.toggleTextActive,
+            ]}
+          >
             Chart
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.toggleButton, activeView === "images" && styles.toggleButtonActive]}
+          style={[
+            styles.toggleButton,
+            activeView === "images" && styles.toggleButtonActive,
+          ]}
           onPress={() => setActiveView("images")}
         >
-          <Text style={[styles.toggleText, activeView === "images" && styles.toggleTextActive]}>
+          <Text
+            style={[
+              styles.toggleText,
+              activeView === "images" && styles.toggleTextActive,
+            ]}
+          >
             Images
           </Text>
         </TouchableOpacity>

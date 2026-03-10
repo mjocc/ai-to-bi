@@ -1,8 +1,15 @@
-index.tsx, results.tsx replace their corresponding files in the capture part of the main app
-useBeeStore.ts replaces the existing store file 
+The capture folder should consist of:
+- _layout
+- efbInfo (unchanged)
+- index (very different to the old index file!)
+- record
+- results
 
-stitcherApi.ts goes into the services part of the main app
+Additionally:
+- add the stitcherApi.ts to the services folder
+- replace the index in (tabs) as mentioned
 
-stitcher.py and stitcher_api.py should be in the same folder (beehive_stitcher) with an \__init__.py file (can be blank)
-There should be another folder named "panoramas" on the same level as this folder
-stitcher_api uses uvicorn to host, instructions are in there (needs a terminal of its own)
+To run:
+- make new folder stitcher_server -> panoramas, beehive_stitcher -> \_\_init\_\_.py, stitcher_api.py, stitcher.py
+- ENSURE IT HAS AN (empty) \_\_init\_\_.py!
+- Refer to the api file to host the stitching server, just make sure you are on the same wifi

@@ -18,7 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useBeeStore } from "../../store/useBeeStore";
+import { getImageUri, useBeeStore as useStore } from "@/store/useBeeStore";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -26,7 +26,8 @@ const screenWidth = Dimensions.get("window").width;
 
 export default function ResultsScreen() {
   const router = useRouter();
-  const { getLatestStitchedScan, updateScanName } = useBeeStore();
+  const { getScansWithImageNames, images, updateImageName, initializeData } =
+    useStore();
 
   const [editName, setEditName] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
@@ -34,7 +35,15 @@ export default function ResultsScreen() {
   // TODO: wire up confidence (and everything else)
   // const [confidence, setConfidence] = useState<number | null>(null);
 
-  const scan = getLatestStitchedScan();
+  const scansWithNames = getScansWithImageNames();
+  const latestScan =
+    scansWithNames.length > 0
+      ? scansWithNames[scansWithNames.length - 1]
+      : null;
+
+  const latestImage = latestScan
+    ? images.find((img) => img.ImageID === latestScan.ImageID) ?? null
+    : null;
 
   const openEditModal = () => {
     if (!scan) return;
@@ -76,11 +85,21 @@ export default function ResultsScreen() {
                 resizeMode="contain"
               />
             </View>
-
-            <View style={styles.placeholderBadge}>
-              <Text style={styles.placeholderBadgeText}>
-                🐝 Placeholder
+            <View
+              style={[styles.confidenceBadge, { borderColor: confidenceColor }]}
+            >
+              <Text style={styles.confidenceLabel}>Varroa Confidence</Text>
+              <Text
+                style={[styles.confidenceValue, { color: confidenceColor }]}
+              >
+                {confidenceLabel}
               </Text>
+              {latestScan.Confidence > THRESHOLD && (
+                <Text style={styles.warningNote}>
+                  This scan exceeds the {THRESHOLD}% threshold. Consider
+                  treatment.
+                </Text>
+              )}
             </View>
 
             {/* Meta */}
@@ -94,8 +113,10 @@ export default function ResultsScreen() {
                 onPress={openEditModal}
               />
             </View>
-
-            <TouchableOpacity style={styles.renameButton} onPress={openEditModal}>
+            <TouchableOpacity
+              style={styles.renameButton}
+              onPress={openEditModal}
+            >
               <Text style={styles.renameButtonText}>✎ Rename This Scan</Text>
             </TouchableOpacity>
 
@@ -340,7 +361,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
-  modalCancel: { backgroundColor: "#F0F0F0" },
-  modalSave: { backgroundColor: "#F6C24E" },
-  modalButtonText: { fontWeight: "600", fontSize: 15, color: "#555" },
+  modalCancel: {
+    backgroundColor: "#F0F0F0",
+  },
+  modalSave: {
+    backgroundColor: "#F6C24E",
+  },
+  modalButtonText: {
+    fontWeight: "600",
+    fontSize: 15,
+    color: "#555",
+  },
 });

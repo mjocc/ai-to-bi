@@ -1,17 +1,23 @@
 """
+Use locally:
+
 python -m beehive_stitcher.stitcher --input video.mp4 --mode fast --output preview.tiff
 
+Ensure the input video is in the same layer as this stitcher.
+There is currently no support for local use with the reference image, but that can be added if needed.
+
 Options:
-    --mode {fast,slow}  Processing quality mode (default: slow)
-                          fast: ~10s, lower quality, aggressive downsampling
-                          slow: full quality, no downsampling
-    --output PATH       Output file path (default: beehive_panorama.tiff)
-    --pattern GLOB      Image glob pattern for directory input (default: *.jpg)
-    --sample-rate INT   Extract every Nth frame (default: 3)
-    --max-frames INT    Maximum frames to process (default: 300)
-    --no-edges          Disable frame boundary detection
-    --no-rect           Disable rectangular frame enforcement
-    --debug             Enable verbose debug logging
+    --mode {fast,slow}      Processing quality mode (default: slow)
+                              fast: ~10s, lower quality, aggressive downsampling
+                              slow: full quality, no downsampling
+    --output PATH           Output file path (default: beehive_panorama.tiff)
+    --reference PATH        Optional reference photo of the full frame
+    --pattern GLOB          Image glob pattern for directory input (default: *.jpg)
+    --sample-rate INT       Extract every Nth frame (default: 3)
+    --max-frames INT        Maximum frames to process (default: 300)
+    --no-edges              Disable frame boundary detection
+    --no-rect               Disable rectangular frame enforcement
+    --debug                 Enable verbose debug logging
 """
 
 import argparse
@@ -75,6 +81,9 @@ class StitcherConfig:
     use_lanczos: bool = True
     blend_width_ratio: float = 0.12
 
+    # Optional reference image path
+    reference_image_path: Optional[str] = None
+
 
 def fast_config() -> StitcherConfig:
     """Aggressive settings targeting ~10s total runtime."""
@@ -96,6 +105,74 @@ def fast_config() -> StitcherConfig:
 def slow_config() -> StitcherConfig:
     """Full-quality settings."""
     return StitcherConfig()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Reference Image Alignment
+# ──────────────────────────────────────────────────────────────────────────────
+
+class ReferenceAligner:
+    """
+    Uses a full-frame reference photo to validate and optionally re-warp
+    the stitched panorama so it matches the known frame geometry.
+
+    The reference is matched against the panorama with SIFT + RANSAC to find
+    a homography.  If the homography is plausible the panorama is warped to
+    align with the reference's coordinate space (i.e. the final image is in
+    the same perspective as the wide reference shot).
+    """
+
+    MIN_MATCHES = 20
+
+    def __init__(self):
+        self.sift = cv2.SIFT_create(nfeatures=2000)
+        self.flann = cv2.FlannBasedMatcher(
+            {"algorithm": 1, "trees": 5}, {"checks": 100}
+        )
+
+    def align(self, panorama: np.ndarray, reference: np.ndarray) -> np.ndarray:
+        """
+        Return the panorama warped into reference space, or the original
+        panorama unchanged if alignment fails.
+        """
+        ref_gray = cv2.cvtColor(reference, cv2.COLOR_BGR2GRAY)
+        pan_gray = cv2.cvtColor(panorama, cv2.COLOR_BGR2GRAY)
+
+        kp_ref, desc_ref = self.sift.detectAndCompute(ref_gray, None)
+        kp_pan, desc_pan = self.sift.detectAndCompute(pan_gray, None)
+
+        if desc_ref is None or desc_pan is None:
+            logger.warning("Reference alignment: no descriptors found, skipping.")
+            return panorama
+
+        if len(desc_ref) < self.MIN_MATCHES or len(desc_pan) < self.MIN_MATCHES:
+            logger.warning("Reference alignment: too few keypoints, skipping.")
+            return panorama
+
+        raw = self.flann.knnMatch(desc_pan, desc_ref, k=2)
+        good = [m for m, n in raw if m.distance < 0.7 * n.distance]
+
+        if len(good) < self.MIN_MATCHES:
+            logger.warning(
+                f"Reference alignment: only {len(good)} matches (need {self.MIN_MATCHES}), skipping."
+            )
+            return panorama
+
+        src_pts = np.float32([kp_pan[m.queryIdx].pt for m in good])
+        dst_pts = np.float32([kp_ref[m.trainIdx].pt for m in good])
+
+        H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 4.0)
+
+        if H is None:
+            logger.warning("Reference alignment: homography estimation failed, skipping.")
+            return panorama
+
+        inliers = int(mask.sum()) if mask is not None else 0
+        logger.info(f"Reference alignment: {inliers} inliers, warping panorama.")
+
+        rh, rw = reference.shape[:2]
+        aligned = cv2.warpPerspective(panorama, H, (rw, rh))
+        return aligned
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -479,11 +556,24 @@ class BeehiveStitcher:
 
             canvas.add_frame(frames[i], H)
 
-            if i % 20 == 0:
+            if i % 5 == 0:
                 logger.info(f"  {i}/{len(frames) - 1} frames stitched")
 
         logger.info(f"Done. Skipped {skipped}/{len(frames)} frames.")
-        return canvas.get_result()
+        panorama = canvas.get_result()
+
+        # ── Reference alignment (optional) ────────────────────────────────────
+        if self.config.reference_image_path:
+            ref = cv2.imread(self.config.reference_image_path, cv2.IMREAD_COLOR)
+            if ref is None:
+                logger.warning(
+                    f"Could not load reference image: {self.config.reference_image_path}"
+                )
+            else:
+                logger.info("Aligning panorama to reference image...")
+                panorama = ReferenceAligner().align(panorama, ref)
+
+        return panorama
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -502,6 +592,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="fast≈10s lower quality | slow=full quality (default: slow)")
     p.add_argument("--output", default="beehive_panorama.tiff", metavar="PATH",
                    help="Output file path (default: beehive_panorama.tiff)")
+    p.add_argument("--reference", default=None, metavar="PATH",
+                   help="Optional reference photo of the entire hive frame")
     p.add_argument("--pattern", default="*.jpg", metavar="GLOB",
                    help="Image glob pattern for directory input (default: *.jpg)")
     p.add_argument("--sample-rate", type=int, metavar="N",
@@ -526,6 +618,8 @@ def main():
     config = fast_config() if args.mode == "fast" else slow_config()
     config.output_path = args.output
 
+    if args.reference:
+        config.reference_image_path = args.reference
     if args.sample_rate:
         config.frame_sample_rate = args.sample_rate
     if args.max_frames:
