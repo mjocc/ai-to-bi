@@ -1,11 +1,10 @@
-/**
- * capture/results.tsx
- *
- * Displays the stitched panorama from the most recent scan.
- */
+//I'm not sure if this was what was wanted but it should show the results of the scan
+//Dodgy way of making it work by getting the results of the most recent scan saved to store
+//So will need saving to the store beforehand
+//Feel free to change / overwrite if you want
 
 import { Stack, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -21,8 +20,7 @@ import {
 import { getImageUri, useBeeStore as useStore } from "@/store/useBeeStore";
 
 const screenWidth = Dimensions.get("window").width;
-
-// const THRESHOLD = 80, or something;
+const THRESHOLD = 80;
 
 export default function ResultsScreen() {
   const router = useRouter();
@@ -31,9 +29,11 @@ export default function ResultsScreen() {
 
   const [editName, setEditName] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
-  // TODO: wire up confidence (and everything else)
-  // const [confidence, setConfidence] = useState<number | null>(null);
+  useEffect(() => {
+    initializeData().then(() => setInitialized(true));
+  }, []);
 
   const scansWithNames = getScansWithImageNames();
   const latestScan =
@@ -46,20 +46,30 @@ export default function ResultsScreen() {
     : null;
 
   const openEditModal = () => {
-    if (!latestScan) return;
-    setEditName(latestScan.ImageName ?? "");
+    if (!latestImage) return;
+    setEditName(latestImage.ImageName);
     setShowEditModal(true);
   };
 
   const saveName = () => {
-    if (!latestScan) return;
+    if (!latestImage) return;
     if (!editName.trim()) {
       Alert.alert("Invalid name", "Name cannot be empty.");
       return;
     }
-    updateImageName(latestScan.ImageID, editName.trim());
+    updateImageName(latestImage.ImageID, editName.trim());
     setShowEditModal(false);
   };
+
+  const confidenceColor =
+    latestScan && latestScan.Confidence > THRESHOLD ? "#D9534F" : "#4CAF50";
+
+  const confidenceLabel =
+    latestScan && latestScan.Confidence > THRESHOLD
+      ? `⚠️ High — ${latestScan.Confidence.toFixed(1)}%`
+      : latestScan
+      ? `✓ Normal — ${latestScan.Confidence.toFixed(1)}%`
+      : "—";
 
   return (
     <View style={styles.container}>
@@ -69,20 +79,19 @@ export default function ResultsScreen() {
         style={{ flex: 1, width: "100%" }}
         contentContainerStyle={styles.scrollContent}
       >
-        <Text style={styles.heading}>Stitched Panorama</Text>
+        <Text style={styles.heading}>Most Recent Scan</Text>
 
-        {!latestScan ? (
+        {!initialized || !latestScan || !latestImage ? (
           <Text style={styles.placeholder}>
-            No results yet. Record a hive to get started.
+            No results yet. Scan a hive to get started.
           </Text>
         ) : (
           <>
-            {/* Panorama image */}
             <View style={styles.imageWrapper}>
               <Image
-                source={{ uri: latestScan.panoramaUri }}
+                source={{ uri: getImageUri(latestImage.ImageFileName) }}
                 style={styles.image}
-                resizeMode="contain"
+                resizeMode="cover"
               />
             </View>
             <View
@@ -101,16 +110,14 @@ export default function ResultsScreen() {
                 </Text>
               )}
             </View>
-
-            {/* Meta */}
             <View style={styles.metaCard}>
-              <Row label="Hive" value={`#${scan.hiveNo ?? "—"}`} />
-              <Row label="Date" value={scan.date} />
+              <Row label="Hive" value={`#${latestScan.HiveNo}`} />
+              <Row label="Date" value={latestImage.DateTaken} />
               <Row
                 label="Name"
-                value={scan.name || "Unnamed scan"}
-                editable
+                value={latestImage.ImageName}
                 onPress={openEditModal}
+                editable
               />
             </View>
             <TouchableOpacity
@@ -119,7 +126,6 @@ export default function ResultsScreen() {
             >
               <Text style={styles.renameButtonText}>✎ Rename This Scan</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.continueButton}
               onPress={() => router.replace("/(tabs)")}
@@ -129,8 +135,6 @@ export default function ResultsScreen() {
           </>
         )}
       </ScrollView>
-
-      {/* Rename modal */}
       <Modal
         visible={showEditModal}
         transparent
@@ -171,7 +175,6 @@ export default function ResultsScreen() {
     </View>
   );
 }
-
 function Row({
   label,
   value,
@@ -198,7 +201,6 @@ function Row({
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -225,7 +227,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   imageWrapper: {
-    width: screenWidth - 40,
     borderRadius: 14,
     overflow: "hidden",
     shadowColor: "#000",
@@ -234,27 +235,37 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
     marginBottom: 20,
-    backgroundColor: "#111",
   },
   image: {
-    width: "100%",
-    // fix height to avoid bad display
-    height: (screenWidth - 40) * 0.45,
+    width: screenWidth - 40,
+    height: screenWidth - 40,
   },
-  placeholderBadge: {
+  confidenceBadge: {
     width: "100%",
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderWidth: 2,
     borderRadius: 12,
-    padding: 14,
+    padding: 16,
     marginBottom: 16,
     alignItems: "center",
     backgroundColor: "#fff",
   },
-  placeholderBadgeText: {
-    fontSize: 14,
-    color: "#999",
-    fontStyle: "italic",
+  confidenceLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#888",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  confidenceValue: {
+    fontSize: 22,
+    fontWeight: "800",
+  },
+  warningNote: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#D9534F",
+    textAlign: "center",
   },
   metaCard: {
     width: "100%",
@@ -354,7 +365,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: "#333",
   },
-  modalButtons: { flexDirection: "row", gap: 10 },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 10,
+  },
   modalButton: {
     flex: 1,
     paddingVertical: 10,
