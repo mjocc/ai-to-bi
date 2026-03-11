@@ -80,7 +80,7 @@ export default function ResultsScreen() {
         style={{ flex: 1, width: "100%" }}
         contentContainerStyle={styles.scrollContent}
       >
-        <Text style={styles.heading}>Most Recent Scan</Text>
+        <Text style={styles.heading}>Highest Confidence Scan</Text>
 
         {!initialized || !latestScan || !latestImage ? (
           <Text style={styles.placeholder}>
