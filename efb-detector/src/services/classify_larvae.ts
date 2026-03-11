@@ -5,6 +5,7 @@ let classifierModel: TensorflowModel | null = null;
 
 export async function preloadClassifierModel(): Promise<void> {
   classifierModel = await loadTensorflowModel(
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     require("../../assets/models/disease_classifier_float16.tflite")
   );
 }
@@ -15,6 +16,7 @@ export async function processImageWithBBoxes(
 ) {
   const model =
     (classifierModel ??= await loadTensorflowModel(
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require("../../assets/models/disease_classifier_float16.tflite")
     ));
 

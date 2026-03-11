@@ -5,6 +5,7 @@ let locatorModel: TensorflowModel | null = null;
 
 export async function preloadLocatorModel(): Promise<void> {
   locatorModel = await loadTensorflowModel(
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     require("../../assets/models/larvae_locator_float16.tflite")
   );
 }
@@ -12,6 +13,7 @@ export async function preloadLocatorModel(): Promise<void> {
 export async function getBBoxes(tensored_frame: tf.Tensor3D) {
   const model =
     (locatorModel ??= await loadTensorflowModel(
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require("../../assets/models/larvae_locator_float16.tflite")
     ));
 
