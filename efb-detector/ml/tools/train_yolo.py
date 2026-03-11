@@ -11,7 +11,7 @@ IMGSZ = 640
 BATCH = 4
 DEVICE = "mps"
 PROJECT = "runs"
-NAME = "grub-yolo-v3"
+NAME = "grub-yolo-v5"
 WORKERS = 4
 PATIENCE = 30
 
