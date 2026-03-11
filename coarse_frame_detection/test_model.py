@@ -1,13 +1,9 @@
 """
-Frame Detection Test Script - Object Detection Mode
+Utilities for running the frame detector on images for quick checks and
+visualizations.
 
-This script tests the trained object detection model on images from the dataset
-to verify frame detection works correctly with bounding boxes and quality flags.
-
-Usage:
-    python test_model.py --image /path/to/image.jpg
-    python test_model.py --random --count 10
-    python test_model.py --all
+Use this to inspect model outputs, compute simple accuracy over a split, or
+save annotated predictions for debugging.
 """
 
 import os
@@ -22,8 +18,7 @@ import matplotlib.pyplot as plt
 import json
 from tqdm import tqdm
 
-# When False, visualization will be saved but not displayed (useful for CI and
-# non-interactive runs). Can be toggled by CLI flag `--no-show`.
+# When False, visualizations are written to disk but not shown on-screen.
 SHOW_PLOTS = True
 
 # Import configuration
@@ -39,10 +34,10 @@ except ImportError:
         'batch_size': 32,
     }
 
-# Flag names for detection
+# Names of the quality flags produced by the model (order matters)
 FLAG_NAMES = [
     'is_frame_90_degrees',
-    'is_rotation_invalid', 
+    'is_rotation_invalid',
     'is_too_small',
     'is_too_large',
     'is_out_of_bounds',
@@ -51,7 +46,7 @@ FLAG_NAMES = [
 
 
 class FrameDetectorTester:
-    """Test the trained frame detection model (Object Detection)"""
+    """Helper class to run the trained detector and visualize/results."""
     
     def __init__(self, model_path=None):
         self.model = None
@@ -63,7 +58,10 @@ class FrameDetectorTester:
         self.load_model()
     
     def load_model(self):
-        """Load the trained model"""
+        """Load the trained model from the model directory.
+
+        Exits if the expected checkpoint cannot be found.
+        """
         checkpoint_path = os.path.join(self.model_path, 'checkpoint.h5')
         
         if os.path.exists(checkpoint_path):
@@ -78,7 +76,11 @@ class FrameDetectorTester:
             sys.exit(1)
     
     def preprocess_image(self, image_path):
-        """Preprocess a single image for model input"""
+        """Load, resize and normalize an image for model input.
+
+        Returns a batch-shaped array along with the original PIL image and
+        its original width and height.
+        """
         # Load image
         img = Image.open(image_path).convert('RGB')
         
@@ -97,22 +99,25 @@ class FrameDetectorTester:
         return img_array, img, original_width, original_height
 
     def predict(self, image_path):
-        """Predict on a single image with full detection output"""
+        """Run the model on one image and return a detailed result dict.
+
+        The returned dict mirrors the structure used elsewhere in the repo.
+        """
         
         # Preprocess
         img_array, original_img, orig_w, orig_h = self.preprocess_image(image_path)
         
         # Predict (model outputs: bbox, has_frame, flags)
         bbox_pred, class_pred, flags_pred = self.model.predict(img_array, verbose=0)
-        
-        # Denormalize bbox
+
+        # Convert the normalized bbox back to pixel coordinates
         x_norm, y_norm, w_norm, h_norm = bbox_pred[0]
         x = int(x_norm * orig_w)
         y = int(y_norm * orig_h)
         w = int(w_norm * orig_w)
         h = int(h_norm * orig_h)
         
-        # Ensure bbox is within bounds
+        # Clamp bbox coordinates so they stay on the image
         x = max(0, min(x, orig_w - 1))
         y = max(0, min(y, orig_h - 1))
         w = max(1, min(w, orig_w - x))
@@ -122,7 +127,7 @@ class FrameDetectorTester:
         has_frame = bool(class_pred[0][0] > 0.5)
         frame_confidence = float(class_pred[0][0])
         
-        # Flags
+        # Decode quality flags
         flags = {}
         for i, flag_name in enumerate(FLAG_NAMES):
             flags[flag_name] = bool(flags_pred[0][i] > 0.5)
@@ -132,7 +137,7 @@ class FrameDetectorTester:
         image_area = orig_w * orig_h
         frame_ratio = frame_area / image_area if image_area > 0 else 0
         
-        # Recommended zoom
+        # Compute a simple recommended zoom factor
         ideal_ratio = 0.45
         if frame_ratio > 0:
             recommended_zoom = ideal_ratio / frame_ratio
@@ -164,7 +169,11 @@ class FrameDetectorTester:
         }
     
     def predict_batch(self, image_paths):
-        """Predict on a batch of images"""
+        """Run predict() on a list of image paths and return results.
+
+        This keeps the same API as predict() but operates over a batch for
+        speed when possible.
+        """
         
         # Preprocess all images
         images = []
@@ -268,7 +277,7 @@ class FrameDetectorTester:
                 print(f"Warning: {category_path} not found")
                 continue
 
-            # Get images
+            # Gather images from the split/category folder
             images = list(map(str, Path(category_path).glob('*.jpg')))
             if max_images:
                 images = images[:max_images]
@@ -322,7 +331,7 @@ class FrameDetectorTester:
         return results
     
     def test_single_image(self, image_path):
-        """Test on a single image with visualization"""
+        """Run prediction on a single image and save/show an annotated result."""
         if not os.path.exists(image_path):
             print(f"✗ Image not found: {image_path}")
             return
@@ -362,11 +371,14 @@ class FrameDetectorTester:
         if result['flags'].get('is_out_of_bounds', False):
             print("→ Frame extends beyond bounds - reposition")
         
-        # Visualize
+        # Save and optionally display a visualization of the prediction
         self.visualize_prediction(image_path, result)
     
     def test_random_images(self, count=10):
-        """Test on random images from the dataset"""
+        """Pick a random sample of images across splits and run predictions.
+
+        Useful as a quick spot-check rather than a full evaluation.
+        """
         import random
         
         print(f"\n{'='*60}")
@@ -385,8 +397,8 @@ class FrameDetectorTester:
         if not all_images:
             print("No images found in processed_dataset")
             return
-        
-        # Sample random images
+
+        # Pick the requested number of random samples (seeded for repeatability)
         random.seed(42)
         sampled = random.sample(all_images, min(count, len(all_images)))
         
@@ -419,7 +431,10 @@ class FrameDetectorTester:
         print(f"\nRandom sample accuracy: {accuracy:.2f}%")
     
     def visualize_prediction(self, image_path, result):
-        """Visualize prediction with bounding box"""
+        """Draw the detected bounding box and flags onto the image and save it.
+
+        Also shows the image with matplotlib if SHOW_PLOTS is True.
+        """
         # Load image
         img = Image.open(image_path)
         
@@ -442,7 +457,7 @@ class FrameDetectorTester:
         label = f"{'FRAME' if result['has_frame'] else 'NO FRAME'} ({result['confidence']:.1%})"
         draw.text((bbox['x'], bbox['y'] - 20), label, fill=color)
         
-        # Display with matplotlib
+        # Show/save the annotated image using matplotlib
         plt.figure(figsize=(10, 8))
         plt.imshow(img)
         

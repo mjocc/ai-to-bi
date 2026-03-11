@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """
-TensorFlow Lite Model Converter
+Convert a trained Keras model to TensorFlow Lite for mobile/edge use.
 
-Converts the trained Keras model to TensorFlow Lite format for deployment
-on mobile and edge devices.
+This script supports a few common checkpoint formats and can optionally
+apply quantization to shrink the model for deployment.
 
-Usage:
-    python maketflite.py                          # Default conversion
-    python maketflite.py --quantized              # Convert with quantization
-    python maketflite.py --model checkpoint.keras # Specify model file
-    python maketflite.py --output custom.tflite   # Custom output name
+Examples:
+    python maketflite.py
+    python maketflite.py --quantized
 """
 
 import os
@@ -17,7 +15,7 @@ import sys
 import argparse
 import numpy as np
 
-# Add current directory to path for imports
+# Make local imports work when running this file directly
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import tensorflow as tf
@@ -36,18 +34,21 @@ except ImportError:
 
 
 def load_keras_model(model_path):
-    """Load the trained Keras model from checkpoint"""
+    """Try several ways to load a trained model and return (model, model_dir).
+
+    This helper tries the most common formats in order: .keras, model.h5,
+    checkpoint.h5, then a SavedModel directory.
+    """
     import tensorflow as tf
-    
+
     print(f"Loading model from: {model_path}")
-    
+
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model not found: {model_path}")
-    
-    # Get model directory from the model path
+
     model_dir = os.path.dirname(model_path)
-    
-    # First try: Load from .keras file (preferred for Keras 3)
+
+    # 1) Try .keras (Keras 3 preferred format)
     try:
         print(f"  Trying .keras file: {model_path}")
         model = keras.models.load_model(model_path, compile=False)
@@ -57,8 +58,8 @@ def load_keras_model(model_path):
         return model, model_dir
     except Exception as e1:
         print(f"  .keras load failed: {e1}")
-    
-    # Second try: Load the .h5 version
+
+    # 2) Try model.h5
     h5_path = os.path.join(model_dir, 'model.h5')
     if os.path.exists(h5_path):
         try:
@@ -70,8 +71,8 @@ def load_keras_model(model_path):
             return model, model_dir
         except Exception as e2:
             print(f"  .h5 load failed: {e2}")
-    
-    # Third try: Load from checkpoint.h5
+
+    # 3) Try checkpoint.h5
     checkpoint_h5 = os.path.join(model_dir, 'checkpoint.h5')
     if os.path.exists(checkpoint_h5):
         try:
@@ -81,63 +82,60 @@ def load_keras_model(model_path):
             return model, model_dir
         except Exception as e3:
             print(f"  checkpoint.h5 load failed: {e3}")
-    
-    # Fourth try: Load from SavedModel format (most compatible)
+
+    # 4) Try SavedModel directory
     saved_model_path = os.path.join(model_dir, 'saved_model')
     if os.path.exists(saved_model_path):
         try:
             print(f"  Trying SavedModel format from: {saved_model_path}")
-            # Load as SavedModel and convert to Keras
             saved_model = tf.saved_model.load(saved_model_path)
-            
-            # Get the serving function
+
+            # Obtain the serving signature and wrap it so it behaves like a Keras
+            # model for downstream conversion and inference steps.
             serving_fn = saved_model.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
-            
-            # Create a wrapper that behaves like a Keras model
+
             class SavedModelAsKeras:
                 def __init__(self, sm_model, serving_fn):
                     self._model = sm_model
                     self._serving_fn = serving_fn
                     self.inputs = serving_fn.inputs
                     self.outputs = serving_fn.outputs
-                    # Get the concrete function for inference
                     self._concrete_func = serving_fn
-                    
+
                 def predict(self, x, verbose=0):
                     result = self._serving_fn(x)
                     outputs = []
                     for key in sorted(result.keys()):
                         outputs.append(result[key].numpy())
                     return tuple(outputs)
-                
+
                 def __call__(self, x):
                     return self._serving_fn(x)
-                
+
                 def call(self, x, training=False):
-                    """Required for TFLite conversion"""
+                    """Compatibility wrapper used during conversion."""
                     return self._serving_fn(x)
-                
+
                 @property
                 def input_shape(self):
                     return self.inputs[0].shape.as_list()
-                
+
                 @property
                 def output_names(self):
                     return sorted(self._serving_fn.outputs.keys())
-                
+
                 @property
                 def output_shape(self):
-                    """Return output shapes"""
                     shapes = []
                     for output in self.outputs:
                         shapes.append(output.shape.as_list())
                     return shapes
-            
+
             print("✓ Model loaded successfully from SavedModel!")
             return SavedModelAsKeras(saved_model, serving_fn), saved_model_path
         except Exception as e4:
             print(f"  SavedModel load failed: {e4}")
-    
+
     raise Exception("Could not load model with any method. Please ensure you have the correct Keras/TensorFlow version that was used to train the model.")
 
 

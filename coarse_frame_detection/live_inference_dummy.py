@@ -1,25 +1,14 @@
 #!/usr/bin/env python3
 """
-Dummy live inference for webcam integration testing.
+Small webcam demo that mimics the frame detector without TensorFlow.
 
-This script does NOT use the trained model. It implements a lightweight heuristic
-that approximates a frame detector so you can test webcam capture, drawing,
-and the pipeline integration without installing TensorFlow.
+This is a lightweight heuristic used mainly for integration tests or to
+exercise the video capture and drawing code. It looks for the largest contour
+in the frame, checks blur via Laplacian variance, and accepts bounding boxes
+within configurable size ratios.
 
-Heuristics used:
-- Blur check: variance of Laplacian > --blur-threshold
-- Candidate rectangle: find largest contour, compare contour area to bounding box area
-- Size check: bounding box area / image area between min and max ratios
-
-Usage:
-  python3 live_inference_dummy.py --camera 0 --show
-
-Options:
-  --camera N       Camera index or path/URL to video stream (default 0)
-  --show           Show a preview window
-  --blur-threshold INT  Variance threshold for blur (default 100)
-  --min-ratio FLOAT  Minimum bbox/image area ratio (default 0.2)
-  --max-ratio FLOAT  Maximum bbox/image area ratio (default 0.7)
+Example:
+    python3 live_inference_dummy.py --camera 0 --show
 """
 
 import cv2
@@ -30,10 +19,12 @@ from pathlib import Path
 
 
 def is_blurry(gray, thresh):
+    """Return True if the image is likely blurry based on Laplacian variance."""
     return cv2.Laplacian(gray, cv2.CV_64F).var() < thresh
 
 
 def find_largest_rect(contours):
+    """Return the contour with the largest area and that area value."""
     best = None
     best_area = 0
     for c in contours:
@@ -48,7 +39,8 @@ def main():
     parser = argparse.ArgumentParser(description='Dummy live inference (webcam)')
     parser.add_argument('--camera', default=0, help='Camera index or video path')
     parser.add_argument('--show', action='store_true', help='Show preview window')
-    # Tunable thresholds — defaults set to be more lenient (less sensitive)
+    # Tunable thresholds. Defaults are intentionally lenient to reduce false
+    # negatives during simple testing.
     parser.add_argument('--blur-threshold', type=float, default=40.0,
                         help='Variance of Laplacian below which an image is considered blurry (lower = less sensitive)')
     parser.add_argument('--min-ratio', type=float, default=0.1,
@@ -76,13 +68,10 @@ def main():
         h, w = frame.shape[:2]
         image_area = h * w
 
-        # Preprocess
+        # Convert to grayscale, check blur, and find contours to locate a
+        # candidate rectangle.
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        # Blur test
         blur_flag = is_blurry(gray, args.blur_threshold)
-
-        # Edge / contour to find candidate rectangle
         edges = cv2.Canny(gray, 50, 150)
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         best_contour, best_area = find_largest_rect(contours)
@@ -91,7 +80,8 @@ def main():
         size_ratio = 0.0
         rect_quality = 0.0
 
-        # Accept very small contours too (lower threshold) so we don't miss candidates
+        # Allow small contours (low threshold) so simple scenes still produce
+        # candidates during tests.
         if best_contour is not None and best_area > 50:
             x, y, bw, bh = cv2.boundingRect(best_contour)
             bbox = (x, y, bw, bh)

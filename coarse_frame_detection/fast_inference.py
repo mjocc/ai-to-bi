@@ -1,19 +1,13 @@
 """
-Fast inference utility for Object Detection
+Tiny utility to run fast predictions with the trained frame detector.
 
-Loads the trained Keras model once and allows quick predictions either via
-command-line (single or multiple images) or interactively from a REPL loop.
+This loads the model once and can run batch predictions from the command
+line or stay open as a simple REPL for quick checks. It avoids any
+plotting or GUI work so it stays lightweight and fast.
 
-Usage:
-  # single/batch prediction
-  python fast_inference.py --image tests/notframe1.jpeg
-  python fast_inference.py --image img1.jpg img2.jpg img3.jpg
-
-  # interactive REPL (keeps model loaded in memory)
-  python fast_inference.py --interactive
-
-This intentionally avoids plotting and other blocking behavior so predictions
-are fast. No extra packages required (reuses TensorFlow already in the venv).
+Examples:
+    python fast_inference.py --image img1.jpg img2.jpg
+    python fast_inference.py --interactive
 """
 
 import os
@@ -47,12 +41,16 @@ FLAG_NAMES = [
 
 
 def load_model(model_dir=None):
-    """Load Keras model from checkpoint file inside model_dir"""
+    """Load the trained model from a checkpoint or SavedModel directory.
+
+    Tries several common filenames (.keras, .h5) and falls back to
+    TensorFlow SavedModel when necessary.
+    """
     import tensorflow as tf
     
     model_dir = model_dir or CONFIG.get('model_save_path')
     
-    # First try loading as Keras model, then fall back to TensorFlow SavedModel
+    # Try common Keras checkpoint filenames first, then SavedModel
     for checkpoint_name in ['checkpoint.keras', 'checkpoint.h5', 'new_model.keras']:
         checkpoint_path = os.path.join(model_dir, checkpoint_name)
         if os.path.exists(checkpoint_path):
@@ -62,10 +60,11 @@ def load_model(model_dir=None):
                 model = keras.models.load_model(checkpoint_path)
                 return model
             except Exception as e:
+                # Not fatal here — try the next format
                 print(f"Could not load {checkpoint_path}: {e}")
                 continue
     
-    # Try loading from saved_model format (TensorFlow SavedModel)
+    # If no Keras file found, try SavedModel format
     saved_model_path = os.path.join(model_dir, 'saved_model')
     if os.path.exists(saved_model_path):
         print(f"Loading model from TensorFlow SavedModel: {saved_model_path}")
@@ -77,11 +76,11 @@ def load_model(model_dir=None):
                 self._signature = sm_model.signatures['serving_default']
             
             def predict(self, x, verbose=0):
-                # Convert numpy array to tensor if needed
+                # Convert inputs and call the SavedModel signature, then
+                # return outputs in the same shape that Keras would.
                 if isinstance(x, np.ndarray):
                     x = tf.constant(x, dtype=tf.float32)
                 result = self._signature(x)
-                # Convert to the same format as Keras model output
                 return (
                     result['bbox'].numpy(),
                     result['has_frame'].numpy(),
@@ -97,7 +96,10 @@ def load_model(model_dir=None):
 
 
 def preprocess_image(image_path, img_width, img_height):
-    """Preprocess a single image for detection"""
+    """Load an image, resize and normalize it for model input.
+
+    Returns (array, PIL.Image, original_width, original_height).
+    """
     img = Image.open(image_path).convert('RGB')
     original_width, original_height = img.size
     img_resized = img.resize((img_width, img_height))
@@ -106,7 +108,10 @@ def preprocess_image(image_path, img_width, img_height):
 
 
 def preprocess_batch(image_paths, img_width, img_height):
-    """Preprocess multiple images for batch detection"""
+    """Prepare a batch of images for prediction.
+
+    Returns (batch_array, original_images, original_sizes).
+    """
     images = []
     originals = []
     original_sizes = []
@@ -131,46 +136,51 @@ def preprocess_batch(image_paths, img_width, img_height):
 
 
 def predict_single(model, image_path, img_width, img_height):
-    """Predict on a single image and return detection results with zoom info"""
+    """Run inference for one image and build a human-friendly result dict.
+
+    The dict contains bbox coordinates, classification confidence, quality
+    flags and a basic zoom recommendation.
+    """
     
     img_array, original_img, orig_w, orig_h = preprocess_image(image_path, img_width, img_height)
     img_array = np.expand_dims(img_array, axis=0)
     
-    # Predict (model outputs: bbox, has_frame, flags)
+    # Model is expected to return (bbox, has_frame, flags)
     bbox_pred, class_pred, flags_pred = model.predict(img_array, verbose=0)
     
-    # Denormalize bbox to original image coordinates
+    # Convert bbox from normalized coordinates back to original image pixels
     x_norm, y_norm, w_norm, h_norm = bbox_pred[0]
     x = int(x_norm * orig_w)
     y = int(y_norm * orig_h)
     w = int(w_norm * orig_w)
     h = int(h_norm * orig_h)
     
-    # Ensure bbox is within image bounds
+    # Clamp bbox so it stays within the image
     x = max(0, min(x, orig_w - 1))
     y = max(0, min(y, orig_h - 1))
     w = max(1, min(w, orig_w - x))
     h = max(1, min(h, orig_h - y))
     
-    # Parse classification results
+    # Turn the model's classification output into booleans and floats
     has_frame = bool(class_pred[0][0] > 0.5)
     frame_confidence = float(class_pred[0][0])
     
-    # Parse flags
+    # Decode quality flags into a dictionary
     flags = {}
     for i, flag_name in enumerate(FLAG_NAMES):
         flags[flag_name] = bool(flags_pred[0][i] > 0.5)
     
-    # Calculate zoom recommendation
+    # Compute simple zoom guidance based on how much of the image the
+    # detected frame covers.
     frame_area = w * h
     image_area = orig_w * orig_h
     frame_ratio = frame_area / image_area if image_area > 0 else 0
     
-    # Determine if frame needs zoom in/out
+    # Decide whether to suggest zooming in or out
     is_too_small = flags.get('is_too_small', False)
     is_too_large = flags.get('is_too_large', False)
     
-    # Calculate recommended zoom (based on ideal frame coverage ~30-60% of image)
+    # Pick a recommended zoom factor assuming an ideal coverage of ~45%
     ideal_ratio = 0.45  # 45% of image
     if frame_ratio > 0:
         recommended_zoom = ideal_ratio / frame_ratio
@@ -178,7 +188,7 @@ def predict_single(model, image_path, img_width, img_height):
     else:
         recommended_zoom = 1.0
     
-    # Build zoom instructions
+    # Prepare a short list of textual instructions for the user
     zoom_instructions = []
     if is_too_small or frame_ratio < 0.2:
         zoom_instructions.append("Move closer to the frame")
@@ -190,7 +200,7 @@ def predict_single(model, image_path, img_width, img_height):
         zoom_instructions.append("Frame is at good distance")
         zoom_instructions.append("Current zoom is optimal")
     
-    # Add flag-based instructions
+    # Add extra tips based on the detected quality flags
     if flags.get('is_blurred', False):
         zoom_instructions.append("Image is blurry - hold camera steady")
     if flags.get('is_out_of_bounds', False):
@@ -229,42 +239,42 @@ def predict_single(model, image_path, img_width, img_height):
 
 
 def predict_batch(model, image_paths):
-    """Predict on a batch of images"""
+    """Run predictions on a batch and return a list of result dicts."""
     img_w = CONFIG.get('img_width', 224)
     img_h = CONFIG.get('img_height', 224)
     
     batch, originals, original_sizes = preprocess_batch(image_paths, img_w, img_h)
     
-    # Predict
+    # Run model prediction on the batch
     bbox_preds, class_preds, flags_preds = model.predict(batch, verbose=0)
     
     out = []
     for i, (img_path, orig_size) in enumerate(zip(image_paths, original_sizes)):
         orig_w, orig_h = orig_size
         
-        # Denormalize bbox
+    # Convert normalized bbox back to pixel coordinates
         x_norm, y_norm, w_norm, h_norm = bbox_preds[i]
         x = int(x_norm * orig_w)
         y = int(y_norm * orig_h)
         w = int(w_norm * orig_w)
         h = int(h_norm * orig_h)
         
-        # Ensure bounds
+    # Clamp bbox into valid image bounds
         x = max(0, min(x, orig_w - 1))
         y = max(0, min(y, orig_h - 1))
         w = max(1, min(w, orig_w - x))
         h = max(1, min(h, orig_h - y))
         
-        # Classification
+    # Read classification confidence
         has_frame = bool(class_preds[i][0] > 0.5)
         frame_confidence = float(class_preds[i][0])
         
-        # Flags
+    # Decode flags for this image
         flags = {}
         for j, flag_name in enumerate(FLAG_NAMES):
             flags[flag_name] = bool(flags_preds[i][j] > 0.5)
         
-        # Zoom calculation
+    # Same zoom calculation logic used for single images
         frame_area = w * h
         image_area = orig_w * orig_h
         frame_ratio = frame_area / image_area if image_area > 0 else 0
@@ -335,17 +345,17 @@ def main():
     parser.add_argument('--verbose', '-v', action='store_true', help='Show detailed output')
     args = parser.parse_args()
 
-    # Load model once
+    # Load the model once so we can reuse it for multiple images
     try:
         model = load_model(args.model_dir)
     except Exception as e:
         print(f"Error loading model: {e}")
         sys.exit(1)
 
-    # Determine effective batch size
+    # Effective batch size to use for chunking predictions
     effective_batch = args.batch_size if getattr(args, 'batch_size', None) else CONFIG.get('batch_size', 32)
 
-    # One-shot batch prediction (chunk into batches of effective_batch)
+    # One-shot prediction mode when image paths are provided on the CLI
     if args.image:
         paths = [str(p) for p in args.image]
         out = {}
@@ -367,7 +377,7 @@ def main():
         print(json.dumps(out, indent=2))
         return
 
-    # Interactive REPL: read image paths from stdin
+    # Interactive mode: read paths from stdin and print simple results
     if args.interactive:
         print("Fast inference REPL (Object Detection). Type image paths (one or multiple) or 'exit' to quit.")
         print(f"Using batch size: {effective_batch}")

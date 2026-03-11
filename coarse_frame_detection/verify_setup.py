@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Setup Verification Script
+Quick checks to verify the dataset and environment are ready for training.
 
-Run this script to verify your dataset is correctly set up before training.
+Run this before training to catch missing files or dependencies early.
 """
 
 import os
 import sys
 from pathlib import Path
 
-# Color codes for terminal output
+# Colour codes for terminal output
 GREEN = '\033[92m'
 RED = '\033[91m'
 YELLOW = '\033[93m'
@@ -17,37 +17,37 @@ BLUE = '\033[94m'
 RESET = '\033[0m'
 
 def print_header(text):
-    """Print a formatted header"""
+    """Print a centered, colored header for console output."""
     print(f"\n{BLUE}{'=' * 70}{RESET}")
     print(f"{BLUE}{text.center(70)}{RESET}")
     print(f"{BLUE}{'=' * 70}{RESET}\n")
 
 def check_directory(path, name):
-    """Check if a directory exists and count images"""
+    """Return (exists, image_count) and print a short status message."""
     if not os.path.exists(path):
         print(f"{RED}✗{RESET} {name}: NOT FOUND")
         print(f"  Expected: {path}")
         return False, 0
-    
-    # Count image files
+
+    # Count image files inside the directory
     valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp'}
     image_count = 0
-    
+
     for file in os.listdir(path):
         if Path(file).suffix.lower() in valid_extensions:
             image_count += 1
-    
+
     if image_count == 0:
         print(f"{YELLOW}⚠{RESET} {name}: Directory exists but NO IMAGES found")
         print(f"  Location: {path}")
         return True, 0
-    
+
     print(f"{GREEN}✓{RESET} {name}: {image_count} images found")
     print(f"  Location: {path}")
     return True, image_count
 
 def check_python_packages():
-    """Check if required Python packages are installed"""
+    """Try importing a short list of packages and report any that are missing."""
     required_packages = [
         'tensorflow',
         'numpy',
@@ -56,9 +56,9 @@ def check_python_packages():
         'matplotlib',
         'tqdm'
     ]
-    
+
     missing = []
-    
+
     for package in required_packages:
         try:
             if package == 'PIL':
@@ -71,7 +71,7 @@ def check_python_packages():
         except ImportError:
             print(f"{RED}✗{RESET} {package}")
             missing.append(package)
-    
+
     return len(missing) == 0, missing
 
 def main():
@@ -85,48 +85,48 @@ def main():
     
     all_checks_passed = True
     
-    # 1. Check dataset directories
+    #  Check dataset directories
     print(f"{BLUE}1. Checking Dataset Directories{RESET}")
     print("-" * 70)
-    
+
     base_exists = os.path.exists(DATASET_BASE)
     if base_exists:
         print(f"{GREEN}✓{RESET} Base directory found: {DATASET_BASE}")
     else:
         print(f"{RED}✗{RESET} Base directory NOT FOUND: {DATASET_BASE}")
         all_checks_passed = False
-    
+
     print()
-    
+
     present_ok, present_count = check_directory(FRAME_PRESENT, "frame_present")
     not_present_ok, not_present_count = check_directory(FRAME_NOT_PRESENT, "frame_not_present")
-    
+
     total_images = present_count + not_present_count
-    
+
     if not (present_ok and not_present_ok):
         all_checks_passed = False
-    
+
     if total_images < 50:
         print(f"\n{YELLOW}⚠ WARNING:{RESET} Only {total_images} total images found.")
         print(f"  Recommended: At least 100 images (50+ per class) for good results.")
-    
-    # 2. Check Python packages
+
+    #Check Python packages
     print(f"\n{BLUE}2. Checking Python Dependencies{RESET}")
     print("-" * 70)
-    
+
     packages_ok, missing = check_python_packages()
-    
+
     if not packages_ok:
         print(f"\n{RED}Missing packages:{RESET}")
         for pkg in missing:
             print(f"  - {pkg}")
         print(f"\nInstall with: {YELLOW}pip install -r requirements.txt{RESET}")
         all_checks_passed = False
-    
-    # 3. Check file structure
+
+    # Check file structure
     print(f"\n{BLUE}3. Checking Project Files{RESET}")
     print("-" * 70)
-    
+
     required_files = {
         'train_frame_detector.py': 'Training script',
         'preprocess_data.py': 'Preprocessing script',
@@ -134,7 +134,7 @@ def main():
         'config.py': 'Configuration file',
         'requirements.txt': 'Python dependencies'
     }
-    
+
     for filename, description in required_files.items():
         if os.path.exists(filename):
             print(f"{GREEN}✓{RESET} {filename} - {description}")

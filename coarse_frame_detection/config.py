@@ -1,77 +1,74 @@
 """
-Configuration for Sophia's Frame Detection Dataset
+Configuration for the frame detection project.
 
-This file contains all the paths and settings specific to your dataset.
-Edit these values if your paths change.
+Keeps the dataset paths and training/preprocessing settings in one place.
+Tweak these values if you move the data or want to change training defaults.
 """
 
 import os
 from pathlib import Path
 
-# ============================================================================
-# DATASET PATHS
-# ============================================================================
 
-# Your main dataset directory - using local frame_present and frame_not_present folders
+# Dataset paths
+
+
+# Base directory for the dataset. Expects subfolders like
+# `frame_present` and `frame_not_present` inside this path.
 DATASET_BASE = "/Users/sophiachan/Desktop/Cambridge/1B/Ticks/course_frame_detection"
 
 # Subdirectories
 FRAME_PRESENT_DIR = os.path.join(DATASET_BASE, "frame_present")
 FRAME_NOT_PRESENT_DIR = os.path.join(DATASET_BASE, "frame_not_present")
 
-# Output directory for processed data
+# Where preprocessed train/val/test folders will be written
 PROCESSED_DATA_DIR = "./processed_dataset"
 
-# Model save directory
+# Directory where trained model checkpoints are saved/loaded
 MODEL_SAVE_DIR = "./models/frame_detector"
 
 
-# TRAINING CONFIGURATION - OBJECT DETECTION
-
-
+# Training defaults. These are sensible starting values and can be adjusted
+# for experiments. `dataset_path` should point to the processed dataset that
+# contains train/val/test splits.
 TRAINING_CONFIG = {
-    # Dataset - use processed_dataset which has train/val/test splits
     'dataset_path': "./processed_dataset",
-    
-    # Image settings
+
+    # Model input resolution
     'img_height': 224,
     'img_width': 224,
-    
-    # Training parameters - OPTIMIZED SETTINGS
-    'batch_size': 32,           # Larger batch for better gradients
-    'epochs': 100,               # More epochs with early stopping
-    'learning_rate': 0.00005,   # Lower learning rate for finer tuning
-    
-    # Data splits
-    'validation_split': 0.2,    # 20% for validation
-    'test_split': 0.1,          # 10% for test
-    
-    # Model settings - OBJECT DETECTION
-    'use_detection': True,      # Enable object detection mode
-    'use_augmentation': True,   # Apply data augmentation
-    'use_transfer_learning': True,  # Use pretrained MobileNetV2
-    
-    # Detection-specific settings
+
+    # Training hyperparameters
+    'batch_size': 32,
+    'epochs': 100,
+    'learning_rate': 0.00005,
+
+    # How to split the data
+    'validation_split': 0.2,
+    'test_split': 0.1,
+
+    # Which features to enable at training time
+    'use_detection': True,
+    'use_augmentation': True,
+    'use_transfer_learning': True,
+
+    # Detection thresholds
     'bbox_iou_threshold': 0.5,
     'bbox_confidence_threshold': 0.5,
-    
-    # Loss weights - INCREASED CLASSIFICATION WEIGHT
+
+    # Relative loss weights; tweak if one objective needs more emphasis
     'loss_weights': {
-        'bbox': 1.0,          # Bounding box regression loss weight
-        'class': 2.0,         # INCREASED - Frame classification loss weight
-        'flags': 1.0          # Quality flags loss weight
+        'bbox': 1.0,
+        'class': 2.0,
+        'flags': 1.0
     },
-    
-    # Paths
+
     'model_save_path': MODEL_SAVE_DIR,
-    
-    # Other
     'random_seed': 42,
 }
 
-# ============================================================================
-# PREPROCESSING CONFIGURATION
-# ============================================================================
+
+# Preprocessing settings
+
 
 PREPROCESSING_CONFIG = {
     'source_dir': DATASET_BASE,
@@ -79,15 +76,17 @@ PREPROCESSING_CONFIG = {
     'val_split': 0.2,
     'test_split': 0.1,
     'categories': ['frame_present', 'frame_not_present'],
-    'use_detection': True,  # Parse JSON annotations for detection
+    # If True, expect JSON annotations and produce detection-style outputs
+    'use_detection': True,
 }
-
-# ============================================================================
 # VALIDATION
-# ============================================================================
+
 
 def validate_paths():
-    """Validate that all required directories exist"""
+    """Check that dataset directories exist and report counts.
+
+    Returns True if everything looks ok, False otherwise.
+    """
     errors = []
     
     # Check source directories
@@ -123,12 +122,9 @@ def validate_paths():
     print("\n✓ All paths validated successfully!")
     return True
 
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
-
+# Helper utilities
 def get_image_files(directory):
-    """Get all image files in a directory"""
+    """Return a sorted list of image file paths in `directory`."""
     valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp'}
     files = []
     
@@ -139,7 +135,7 @@ def get_image_files(directory):
     return sorted(files)
 
 def print_dataset_summary():
-    """Print a summary of the dataset"""
+    """Print a short summary about the dataset contents to stdout."""
     print("=" * 70)
     print("DATASET SUMMARY - OBJECT DETECTION MODE")
     print("=" * 70)
@@ -169,10 +165,6 @@ def print_dataset_summary():
     print("  - Frame presence classification")
     print("  - Quality flags: too_small, too_large, blurred, out_of_bounds, rotation")
     print("=" * 70)
-
-# ============================================================================
-# MAIN
-# ============================================================================
 
 if __name__ == "__main__":
     print("Beehive Frame Detection - Dataset Configuration (Object Detection)")

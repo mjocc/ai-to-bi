@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Video frame detection - runs the frame detector on each frame of a video.
+Run the frame detector over a video file and optionally save an annotated
+video or JSON results.
 
-Usage:
+Examples:
     python video_inference.py input.mp4 output.mp4
     python video_inference.py input.mp4 --json output.json
 """
@@ -21,8 +22,12 @@ from fast_inference import load_model, preprocess_image, CONFIG
 
 
 def process_video(video_path, output_path=None, json_path=None, sample_every=1):
-    """Process a video file and detect frames in each frame."""
-    
+    """Scan a video, run detection on sampled frames and collect results.
+
+    If `output_path` is provided an annotated video will be written. If
+    `json_path` is given the results will be saved as JSON.
+    """
+
     print(f"Loading model...")
     model = load_model()
     
@@ -32,7 +37,7 @@ def process_video(video_path, output_path=None, json_path=None, sample_every=1):
     if not cap.isOpened():
         raise ValueError(f"Could not open video: {video_path}")
     
-    # Get video properties
+    # Read basic video properties for later coordinate conversions
     fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -40,7 +45,7 @@ def process_video(video_path, output_path=None, json_path=None, sample_every=1):
     
     print(f"Video: {width}x{height} @ {fps:.1f} FPS, {total_frames} frames")
     
-    # Process frames
+    # Iterate over frames, running detection on every `sample_every` frame
     results = []
     frame_idx = 0
     processed = 0
@@ -54,15 +59,13 @@ def process_video(video_path, output_path=None, json_path=None, sample_every=1):
             # Convert BGR to RGB
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
-            # Save to temp file for preprocessing (or modify preprocess to accept array)
+            # Prepare a scaled array compatible with the model input
             img_h, img_w = CONFIG.get('img_height', 224), CONFIG.get('img_width', 224)
-            
-            # Resize
             frame_resized = cv2.resize(frame_rgb, (img_w, img_h))
             frame_array = frame_resized.astype(np.float32) / 255.0
             frame_array = np.expand_dims(frame_array, axis=0)
-            
-            # Predict
+
+            # Run the model
             bbox_pred, class_pred, flags_pred = model.predict(frame_array, verbose=0)
             
             # Extract results
@@ -71,7 +74,8 @@ def process_video(video_path, output_path=None, json_path=None, sample_every=1):
             
             x_norm, y_norm, w_norm, h_norm = bbox_pred[0]
             
-            # Denormalize to original frame size
+            # Convert normalized bbox coordinates back to pixels in the
+            # original video frame.
             x = int(x_norm * width)
             y = int(y_norm * height)
             w = int(w_norm * width)
@@ -99,13 +103,13 @@ def process_video(video_path, output_path=None, json_path=None, sample_every=1):
     cap.release()
     print(f"Done! Processed {processed} frames out of {total_frames}")
     
-    # Save JSON results
+    # Optionally write results as JSON
     if json_path:
         with open(json_path, 'w') as f:
             json.dump(results, f, indent=2)
         print(f"Results saved to: {json_path}")
     
-    # Create output video with annotations
+    # Optionally create an annotated output video
     if output_path:
         print(f"Creating annotated video: {output_path}")
         
@@ -154,7 +158,7 @@ def process_video(video_path, output_path=None, json_path=None, sample_every=1):
         out.release()
         print(f"Annotated video saved to: {output_path}")
     
-    # Print summary
+    # Print a short summary of the detection pass
     frames_with_frame = sum(1 for r in results if r['has_frame'])
     print(f"\nSummary: {frames_with_frame}/{len(results)} frames had frames detected")
     
