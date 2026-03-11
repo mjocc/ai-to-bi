@@ -10,9 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.efbdetector",
       "infoPlist": {
-    "NSPhotoLibraryAddUsageDescription": "Saving hive scan images to your photo library."
-  }
+        "NSPhotoLibraryAddUsageDescription": "Saving hive scan images to your photo library."
+      }
     },
 
     "android": {
