@@ -1,7 +1,9 @@
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { Accelerometer } from "expo-sensors";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+
+import { test } from "@/services/locate_larvae_test";
 
 export default function Index() {
   const router = useRouter();
@@ -22,6 +24,12 @@ export default function Index() {
         subscription.remove();
       };
     }, [])
+  );
+
+  useEffect(
+    () => () => {
+      test();
+    }
   );
 
   return (
