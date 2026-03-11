@@ -160,7 +160,6 @@ export default function CaptureScreen() {
     const photo = await cameraRef.current.takePictureAsync();
     if (!photo) return;
 
-    // Resize image to max 1280 on the longest side to prevent Out-Of-Memory errors
     const maxDim = 1280;
     let resizeAction = {};
     if (photo.width > photo.height && photo.width > maxDim) {
@@ -231,7 +230,6 @@ export default function CaptureScreen() {
         </View>
 
         <View style={styles.bottomBar}>
-          {/* Hive selector */}
           <View style={styles.hiveRow}>
             <Text style={styles.hiveLabel}>Hive number:</Text>
             <Pressable
@@ -249,12 +247,10 @@ export default function CaptureScreen() {
             </Pressable>
           </View>
 
-          {/* Quadrant label */}
           <Text style={styles.quadrantLabel}>
             Photographing: {QUADRANT_LABELS[quadrantIndex]}
           </Text>
 
-          {/* Quadrant progress grid */}
           <View style={styles.quadrantGrid}>
             {[0, 1, 2, 3].map((i) => {
               const isDone = i < quadrantIndex;
@@ -276,7 +272,6 @@ export default function CaptureScreen() {
             })}
           </View>
 
-          {/* Capture button */}
           <Pressable
             style={styles.captureOuter}
             onPress={handleCapture}
@@ -287,7 +282,6 @@ export default function CaptureScreen() {
         </View>
       </View>
 
-      {/* Processing overlay */}
       {isProcessing && (
         <View style={styles.processingOverlay}>
           <ActivityIndicator size="large" color="#E9B44C" />

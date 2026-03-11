@@ -19,17 +19,10 @@ function preprocessImage(rawImageData: {
   const { data: rgba, width, height } = rawImageData;
 
   return tf.tidy(() => {
-    // Create a 3D tensor from the flat RGBA array [height, width, 4]
-    // Note: tf.tensor3d is much faster than manual looping in JS
     const rgbaTensor = tf.tensor3d(rgba, [height, width, 4], "int32");
-
-    // Slice to drop the alpha channel (last dimension) to get [height, width, 3]
     const rgbTensor = rgbaTensor.slice([0, 0, 0], [height, width, 3]);
-
-    // Convert to float and normalize to [0, 1]
     const normalized = rgbTensor.toFloat().div(tf.scalar(255.0));
 
-    // Resize to the internal MAX_DIM logic
     const scale = Math.min(1, MAX_DIM / Math.max(height, width));
     const newH = Math.max(Math.round(height * scale), 640);
     const newW = Math.max(Math.round(width * scale), 640);

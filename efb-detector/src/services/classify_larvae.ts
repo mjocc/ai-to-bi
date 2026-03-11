@@ -25,7 +25,6 @@ export async function processImageWithBBoxes(
 
   if (bboxes.length === 0) return [];
 
-  // Convert bounding boxes to normalized [y1, x1, y2, x2] for tf.image.cropAndResize
   const boxesData = bboxes.map((bbox) => [
     Math.max(0, bbox[0][0]) / (frameH - 1),
     Math.max(0, bbox[0][1]) / (frameW - 1),
@@ -36,7 +35,6 @@ export async function processImageWithBBoxes(
   const boxesTensor = tf.tensor2d(boxesData, [bboxes.length, 4]);
   const boxIndices = tf.zeros([bboxes.length], "int32") as tf.Tensor1D;
 
-  // Run a single cropAndResize operation instead of manual slicing in a loop
   const crops = tf.tidy(() => {
     return tf.image.cropAndResize(
       tensored_frame.expandDims(0) as tf.Tensor4D,
@@ -49,7 +47,6 @@ export async function processImageWithBBoxes(
   boxesTensor.dispose();
   boxIndices.dispose();
 
-  // Extract all tensor data asynchronously at once for parallel efficiency
   const unstackedCrops = tf.unstack(crops, 0);
   try {
     const cropsData = await Promise.all(
@@ -72,7 +69,6 @@ export async function processImageWithBBoxes(
 
     return results;
   } catch (err) {
-    // Dispose any tensors that weren't disposed in the map
     unstackedCrops.forEach((t) => { if (!t.isDisposed) t.dispose(); });
     throw err;
   } finally {

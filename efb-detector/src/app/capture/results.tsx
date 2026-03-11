@@ -1,8 +1,3 @@
-//I'm not sure if this was what was wanted but it should show the results of the scan
-//Dodgy way of making it work by getting the results of the most recent scan saved to store
-//So will need saving to the store beforehand
-//Feel free to change / overwrite if you want
-
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {

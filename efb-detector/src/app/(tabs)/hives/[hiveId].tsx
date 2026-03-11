@@ -258,7 +258,6 @@ export default function HiveScreen() {
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <Stack.Screen options={{ title: `Hive ${hiveNo}` }} />
 
-      {/* Chart view */}
       {activeView === "chart" && (
         <ScrollView
           style={{ flex: 1, width: "100%" }}
@@ -291,7 +290,6 @@ export default function HiveScreen() {
             </View>
           )}
 
-          {/* Data management buttons */}
           {chartData.datasets[0].data.length > 0 && (
             <View style={styles.clearButtonRow}>
               <TouchableOpacity
@@ -311,7 +309,6 @@ export default function HiveScreen() {
         </ScrollView>
       )}
 
-      {/* Images view */}
       {activeView === "images" && (
         <View style={styles.imagesContainer}>
           <View style={styles.sortRow}>
@@ -363,7 +360,6 @@ export default function HiveScreen() {
         </View>
       )}
 
-      {/* Fullscreen image*/}
       {fullscreenImage && (
         <Modal
           visible
@@ -395,7 +391,6 @@ export default function HiveScreen() {
         </Modal>
       )}
 
-      {/* Rename*/}
       <Modal
         visible={!!editingImage}
         transparent
@@ -430,7 +425,6 @@ export default function HiveScreen() {
         </View>
       </Modal>
 
-      {/* Sort */}
       <Modal
         visible={showSortModal}
         transparent
@@ -473,7 +467,6 @@ export default function HiveScreen() {
         </View>
       </Modal>
 
-      {/* Bottom toggle */}
       <View style={styles.toggleContainer}>
         <TouchableOpacity
           style={[

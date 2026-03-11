@@ -18,7 +18,6 @@ export default function EFBInfoScreen() {
   const navigation = useNavigation();
 
   const handleEmailNBU = () => {
-    // TODO: ideally would also include images of the hive that we have stored
     const subject = "Suspected EFB case";
     const url = `mailto:nbu@apha.gov.uk?subject=${encodeURIComponent(subject)}`;
 
