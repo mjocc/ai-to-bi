@@ -2,12 +2,6 @@
 """
 Convert a trained Keras model to TensorFlow Lite for mobile/edge use.
 
-This script supports a few common checkpoint formats and can optionally
-apply quantization to shrink the model for deployment.
-
-Examples:
-    python maketflite.py
-    python maketflite.py --quantized
 """
 
 import os
@@ -140,21 +134,9 @@ def load_keras_model(model_path):
 
 
 def convert_to_tflite(model, output_path, quantization='default', saved_model_path=None):
-    """
-    Convert Keras model to TensorFlow Lite format
     
-    Args:
-        model: Trained Keras model (or SavedModel wrapper)
-        output_path: Path to save the .tflite file
-        quantization: Quantization mode:
-            - 'none': No quantization (larger file, full precision)
-            - 'default': Default optimization (smaller, slight precision loss)
-            - 'float16': Float16 quantization (half precision)
-            - 'int8': Full integer quantization (smallest, requires representative dataset)
-        saved_model_path: Optional path to SavedModel directory for direct conversion
-    """
     print(f"\nConverting to TensorFlow Lite...")
-    print(f"  Quantization mode: {quantization}")
+    print(f"  Quantisation mode: {quantization}")
     
     # If we have the SavedModel path, use it directly for better compatibility
     if saved_model_path and os.path.exists(saved_model_path):
