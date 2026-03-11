@@ -14,6 +14,7 @@ PROJECT = "runs"
 NAME = "grub-yolo-v5"
 WORKERS = 4
 PATIENCE = 30
+PRETRAINED = True
 
 
 def main():
@@ -28,7 +29,7 @@ def main():
         name=NAME,
         workers=WORKERS,
         patience=PATIENCE,
-        pretrained=True,
+        pretrained=PRETRAINED,
     )
 
 

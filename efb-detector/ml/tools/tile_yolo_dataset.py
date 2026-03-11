@@ -18,7 +18,6 @@ SEED = 42
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 CLASS_NAMES = ["grub"]
-CLASS_COUNT = 1
 
 
 def clamp(v, lo, hi):
@@ -77,14 +76,11 @@ def box_to_yolo(box, tile_x, tile_y, tile_w, tile_h):
 def jitter_color(img, amount, rng):
     if amount <= 0:
         return img
-    rs = 1.0 + rng.uniform(-amount, amount)
-    gs = 1.0 + rng.uniform(-amount, amount)
-    bs = 1.0 + rng.uniform(-amount, amount)
-
+    scales = [1.0 + rng.uniform(-amount, amount) for _ in range(3)]
     r, g, b = img.split()
-    r = r.point(lambda p: max(0, min(255, int(p * rs))))
-    g = g.point(lambda p: max(0, min(255, int(p * gs))))
-    b = b.point(lambda p: max(0, min(255, int(p * bs))))
+    r = r.point(lambda p: max(0, min(255, int(p * scales[0]))))
+    g = g.point(lambda p: max(0, min(255, int(p * scales[1]))))
+    b = b.point(lambda p: max(0, min(255, int(p * scales[2]))))
     return Image.merge("RGB", (r, g, b))
 
 
@@ -122,8 +118,8 @@ def scale_factor_for_boxes(boxes):
     return TARGET_BOX_SIZE_PX / avg_box_size if avg_box_size > 0 else 1.0
 
 
-def random_rotate(img, rng, prob):
-    if rng.random() > prob:
+def random_rotate(img, rng):
+    if rng.random() > ROTATE_PROB:
         return img, 0
     angle = rng.choice([90, 180, 270])
     return img.rotate(angle), angle
@@ -191,7 +187,7 @@ def tile_split(in_img, in_lbl, out_img, out_lbl, rng):
                 tile = tile.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
             if flip_v:
                 tile = tile.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
-            tile, rot = random_rotate(tile, rng, ROTATE_PROB)
+            tile, rot = random_rotate(tile, rng)
 
             labels = []
             for box in boxes:
@@ -241,29 +237,27 @@ def tile_val_split(input_dir, output_dir, rng):
 
 
 def main():
-    input_dir = INPUT_DIR
-    output_dir = OUTPUT_DIR
-    if not (input_dir / "data.yaml").exists():
-        raise FileNotFoundError(f"Missing data.yaml in {input_dir}")
+    if not (INPUT_DIR / "data.yaml").exists():
+        raise FileNotFoundError(f"Missing data.yaml in {INPUT_DIR}")
 
-    if output_dir.exists():
-        shutil.rmtree(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    if OUTPUT_DIR.exists():
+        shutil.rmtree(OUTPUT_DIR)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     rng = random.Random(SEED)
 
-    train_tiles, train_boxes = tile_train_split(input_dir, output_dir, rng)
-    val_tiles, val_boxes = tile_val_split(input_dir, output_dir, rng)
+    train_tiles, train_boxes = tile_train_split(INPUT_DIR, OUTPUT_DIR, rng)
+    val_tiles, val_boxes = tile_val_split(INPUT_DIR, OUTPUT_DIR, rng)
 
-    out_yaml = output_dir / "data.yaml"
+    out_yaml = OUTPUT_DIR / "data.yaml"
     out_yaml.write_text(
         "\n".join(
             [
-                f"path: {output_dir.resolve()}",
+                f"path: {OUTPUT_DIR.resolve()}",
                 "train: images/train",
                 "val: images/val",
                 "",
-                f"nc: {CLASS_COUNT}",
+                "nc: 1",
                 f"names: {CLASS_NAMES}",
                 "",
             ]
