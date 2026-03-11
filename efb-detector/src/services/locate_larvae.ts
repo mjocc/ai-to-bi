@@ -9,37 +9,11 @@ export async function preloadLocatorModel(): Promise<void> {
   );
 }
 
-const MAX_DIM = 1280;
-
-export async function getBBoxes(
-  rawImageData: { data: Uint8Array; width: number; height: number }
-) {
+export async function getBBoxes(tensored_frame: tf.Tensor3D) {
   const model =
-    locatorModel ??
-    (await loadTensorflowModel(
+    (locatorModel ??= await loadTensorflowModel(
       require("../../assets/models/larvae_locator_float16.tflite")
     ));
-
-  // RGBA → normalised RGB Float32Array (pre-allocated, stride-4 iteration)
-  const { data: rgba, width, height } = rawImageData;
-  const rgb = new Float32Array(width * height * 3);
-  let j = 0;
-  for (let i = 0; i < rgba.length; i += 4) {
-    rgb[j++] = rgba[i] / 255;
-    rgb[j++] = rgba[i + 1] / 255;
-    rgb[j++] = rgba[i + 2] / 255;
-  }
-
-  // Cap to MAX_DIM on the longest side to reduce crop count
-  let tensored_frame = tf.tensor3d(rgb, [height, width, 3], "float32");
-  const h = tensored_frame.shape[0] as number;
-  const w = tensored_frame.shape[1] as number;
-  const scale = Math.min(1, MAX_DIM / Math.max(h, w));
-  const newH = Math.max(Math.round(h * scale), 640);
-  const newW = Math.max(Math.round(w * scale), 640);
-  const resized = tensored_frame.resizeBilinear([newH, newW]) as tf.Tensor3D;
-  tensored_frame.dispose();
-  tensored_frame = resized;
 
   const out_bboxes: number[][][] = [];
 
@@ -84,20 +58,22 @@ export async function getBBoxes(
     if (done1) break;
   }
 
-  tensored_frame.dispose();
-
-  // Merge overlapping boxes
+  // Merge overlapping boxes (iterative NMS)
+  const removed = new Set<number>();
   const new_bboxes: number[][][] = [];
-  const removed: number[] = [];
+
   for (let i = 0; i < out_bboxes.length; i++) {
+    if (removed.has(i)) continue;
+    let current = out_bboxes[i];
     for (let j = i + 1; j < out_bboxes.length; j++) {
-      const bbox1 = out_bboxes[i];
-      const bbox2 = out_bboxes[j];
-      const area_1 = (bbox1[1][0] - bbox1[0][0]) * (bbox1[1][1] - bbox1[0][1]);
-      const area_2 = (bbox2[1][0] - bbox2[0][0]) * (bbox2[1][1] - bbox2[0][1]);
+      if (removed.has(j)) continue;
+      const area_1 = (current[1][0] - current[0][0]) * (current[1][1] - current[0][1]);
+      const area_2 =
+        (out_bboxes[j][1][0] - out_bboxes[j][0][0]) *
+        (out_bboxes[j][1][1] - out_bboxes[j][0][1]);
       const intersection_bbox = [
-        [Math.max(bbox1[0][0], bbox2[0][0]), Math.max(bbox1[0][1], bbox2[0][1])],
-        [Math.min(bbox1[1][0], bbox2[1][0]), Math.min(bbox1[1][1], bbox2[1][1])],
+        [Math.max(current[0][0], out_bboxes[j][0][0]), Math.max(current[0][1], out_bboxes[j][0][1])],
+        [Math.min(current[1][0], out_bboxes[j][1][0]), Math.min(current[1][1], out_bboxes[j][1][1])],
       ];
       let area_3 =
         (intersection_bbox[1][0] - intersection_bbox[0][0]) *
@@ -109,17 +85,14 @@ export async function getBBoxes(
         area_3 = 0;
       }
       if (area_3 > Math.min(area_1, area_2) * 0.5) {
-        new_bboxes.push([
-          [Math.min(bbox1[0][0], bbox2[0][0]), Math.min(bbox1[0][1], bbox2[0][1])],
-          [Math.max(bbox1[0][0], bbox2[0][0]), Math.max(bbox1[0][1], bbox2[0][1])],
-        ]);
-        removed.push(i);
-        removed.push(j);
+        current = [
+          [Math.min(current[0][0], out_bboxes[j][0][0]), Math.min(current[0][1], out_bboxes[j][0][1])],
+          [Math.max(current[1][0], out_bboxes[j][1][0]), Math.max(current[1][1], out_bboxes[j][1][1])],
+        ];
+        removed.add(j);
       }
     }
-    if (!removed.includes(i)) {
-      new_bboxes.push(out_bboxes[i]);
-    }
+    new_bboxes.push(current);
   }
 
   return new_bboxes;

@@ -9,48 +9,24 @@ export async function preloadClassifierModel(): Promise<void> {
   );
 }
 
-// Must match MAX_DIM in locate_larvae.ts so bbox coordinates remain consistent
-const MAX_DIM = 1280;
-
 export async function processImageWithBBoxes(
-  rawImageData: { data: Uint8Array; width: number; height: number },
+  tensored_frame: tf.Tensor3D,
   bboxes: number[][][]
 ) {
   const model =
-    classifierModel ??
-    (await loadTensorflowModel(
+    (classifierModel ??= await loadTensorflowModel(
       require("../../assets/models/disease_classifier_float16.tflite")
     ));
 
-  // RGBA → normalised RGB Float32Array (pre-allocated, stride-4 iteration)
-  const { data: rgba, width, height } = rawImageData;
-  const rgb = new Float32Array(width * height * 3);
-  let j = 0;
-  for (let i = 0; i < rgba.length; i += 4) {
-    rgb[j++] = rgba[i] / 255;
-    rgb[j++] = rgba[i + 1] / 255;
-    rgb[j++] = rgba[i + 2] / 255;
-  }
-
-  // Apply identical MAX_DIM cap so bbox coordinates from locate_larvae are valid
-  let tensored_frame = tf.tensor3d(rgb, [height, width, 3], "float32");
-  const h = tensored_frame.shape[0] as number;
-  const w = tensored_frame.shape[1] as number;
-  const scale = Math.min(1, MAX_DIM / Math.max(h, w));
-  const newH = Math.max(Math.round(h * scale), 640);
-  const newW = Math.max(Math.round(w * scale), 640);
-  const resized = tensored_frame.resizeBilinear([newH, newW]) as tf.Tensor3D;
-  tensored_frame.dispose();
-  tensored_frame = resized;
+  const frameH = tensored_frame.shape[0] as number;
+  const frameW = tensored_frame.shape[1] as number;
 
   const results: number[] = [];
   for (const bbox of bboxes) {
-    const frameH = tensored_frame.shape[0] as number;
-    const frameW = tensored_frame.shape[1] as number;
-    const y1 = Math.max(0, bbox[0][1]);
-    const x1 = Math.max(0, bbox[0][0]);
-    const y2 = Math.min(frameH, bbox[1][1]);
-    const x2 = Math.min(frameW, bbox[1][0]);
+    const y1 = Math.max(0, bbox[0][0]);
+    const x1 = Math.max(0, bbox[0][1]);
+    const y2 = Math.min(frameH, bbox[1][0]);
+    const x2 = Math.min(frameW, bbox[1][1]);
     const sliceH = y2 - y1;
     const sliceW = x2 - x1;
     if (sliceH <= 0 || sliceW <= 0) continue;
@@ -69,6 +45,5 @@ export async function processImageWithBBoxes(
     results.push(prob);
   }
 
-  tensored_frame.dispose();
   return results;
 }
