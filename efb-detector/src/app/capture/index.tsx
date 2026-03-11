@@ -88,6 +88,7 @@ export default function CaptureScreen() {
 
   const processPipeline = async (photos: CameraCapturedPicture[]) => {
     try {
+      console.log("Starting ML pipeline with photos:", photos);
       const scansDir = `${RNFS.DocumentDirectoryPath}/scans`;
       const date = new Date();
       const dateStr = date.toLocaleDateString();
@@ -114,6 +115,7 @@ export default function CaptureScreen() {
         });
         imageIds.push(imageId);
 
+        console.log("Calling runMLPipeline for image:", fileName);
         const confidence = await runMLPipeline(
           photo.uri,
           photo.width,

@@ -1,5 +1,6 @@
 import { getBBoxes  } from "@/services/locate_larvae";
 import { toByteArray } from 'base64-js';
+import * as jpeg from 'jpeg-js';
 
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -11,7 +12,7 @@ export async function test() { // require returns a number (module ID)
     const localUri = asset.localUri || asset.uri;
     const base64String = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
     const rawFileBytes = toByteArray(base64String);
-    console.log("hi")
-    const result = await getBBoxes(rawFileBytes, [683, 1024, 3]);
-    //console.log(result);
+    const rawImageData = jpeg.decode(rawFileBytes, { useTArray: true });
+    const result = await getBBoxes(rawImageData);
+    console.log(result);
 }
