@@ -60,7 +60,10 @@ export async function runMLPipeline(
     const probs = await processImageWithBBoxes(tensor, bboxes);
     if (probs.length === 0) return 0;
 
-    return Math.round(Math.max(...probs) * 100);
+    const sorted = [...probs].sort((a, b) => b - a);
+    const topK = sorted.slice(0, 5);
+    const mean = topK.reduce((sum, p) => sum + p, 0) / topK.length;
+    return Math.round(mean * 100);
   } finally {
     tensor.dispose();
   }
