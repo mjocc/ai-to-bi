@@ -30,7 +30,7 @@ interface BeeState {
   bkaEmail: string;
   initializeData: () => Promise<void>;
   addScan: (scan: Omit<Scan, "ScanID">) => void;
-  addImage: (image: Omit<ImageRecord, "ImageID">) => void;
+  addImage: (image: Omit<ImageRecord, "ImageID">) => number;
   updateImageName: (imageID: number, newName: string) => void;
   deleteImage: (imageID: number) => void;
   getScansWithImageNames: () => (Scan & { ImageName: string })[];
@@ -65,13 +65,13 @@ export const useBeeStore = create<BeeState>()(
           ],
         })),
 
-      addImage: (image) =>
+      addImage: (image) => {
+        const newId = (get().images.at(-1)?.ImageID ?? 0) + 1;
         set((state) => ({
-          images: [
-            ...state.images,
-            { ...image, ImageID: (state.images.at(-1)?.ImageID ?? 0) + 1 },
-          ],
-        })),
+          images: [...state.images, { ...image, ImageID: newId }],
+        }));
+        return newId;
+      },
 
       updateImageName: (imageID, newName) =>
         set((state) => ({

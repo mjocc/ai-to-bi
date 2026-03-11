@@ -1,10 +1,18 @@
-import { loadTensorflowModel } from "react-native-fast-tflite";
+import { loadTensorflowModel, TensorflowModel } from "react-native-fast-tflite";
 import * as tf from '@tensorflow/tfjs';
 import * as jpeg from 'jpeg-js';
 
+let classifierModel: TensorflowModel | null = null;
+
+export async function preloadClassifierModel(): Promise<void> {
+  classifierModel = await loadTensorflowModel(
+    require('../../assets/models/disease_classifier_float16.tflite')
+  );
+}
+
 export async function processImageWithBBoxes(frame: tf.TypedArray, image_shape: [number, number, number], bboxes: number[][][]) {
     const rawImageData = jpeg.decode(frame, { useTArray: true });
-    const model = await loadTensorflowModel(require('../../assets/models/disease_classifier_float16.tflite'));
+    const model = classifierModel ?? await loadTensorflowModel(require('../../assets/models/disease_classifier_float16.tflite'));
     let newframe = rawImageData.data
     var newNewFrame = []
     for (var i = 0; i < newframe.length; i++) {

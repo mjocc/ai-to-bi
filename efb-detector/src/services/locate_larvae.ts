@@ -1,10 +1,18 @@
-import { loadTensorflowModel } from "react-native-fast-tflite";
+import { loadTensorflowModel, TensorflowModel } from "react-native-fast-tflite";
 import * as tf from '@tensorflow/tfjs';
 import * as jpeg from 'jpeg-js';
 
+let locatorModel: TensorflowModel | null = null;
+
+export async function preloadLocatorModel(): Promise<void> {
+  locatorModel = await loadTensorflowModel(
+    require('../../assets/models/larvae_locator_float16.tflite')
+  );
+}
+
 export async function getBBoxes(frame: tf.TypedArray, image_shape: [number, number, number]) {
     const rawImageData = jpeg.decode(frame, { useTArray: true });
-    const model = await loadTensorflowModel(require('../../assets/models/larvae_locator_float16.tflite'));
+    const model = locatorModel ?? await loadTensorflowModel(require('../../assets/models/larvae_locator_float16.tflite'));
     let newframe = rawImageData.data
     var newNewFrame = []
     for (var i = 0; i < newframe.length; i++) {
@@ -19,11 +27,7 @@ export async function getBBoxes(frame: tf.TypedArray, image_shape: [number, numb
     tensored_frame = tf.div(tensored_frame, 255);
     // resize
     tensored_frame = tensored_frame.resizeBilinear([Math.max(tensored_frame.shape[0], 640), Math.max(tensored_frame.shape[1], 640)]);
-    //console.log(model)
-    //console.log(tensored_frame.shape)
-    //console.log(await tensored_frame.data())
     var out_bboxes = []
-    console.log("ho")
     for (var start_y = 0; start_y < tensored_frame.shape[0]; start_y += 540) {
         var done1 = false
         if (start_y > tensored_frame.shape[0] - 640) {
@@ -41,13 +45,10 @@ export async function getBBoxes(frame: tf.TypedArray, image_shape: [number, numb
             //let sample_im = cropped_frame.resizeBilinear([32, 32]);
     
             let output = await model.run([await cropped_frame.data()])
-            //console.log(output[0].slice(0, 100))
             for (var i = 0; i < Math.round(output[0].length/5); i += 1) {
                 let bbox = [[Math.round(<number>output[0][i]*640), Math.round(<number>output[0][i+1*Math.round(output[0].length/5)]*640)], [Math.round(<number>output[0][i+2*Math.round(output[0].length/5)]*640), Math.round(<number>output[0][i+3*Math.round(output[0].length/5)]*640)]]
                 let prob = output[0][i+4*Math.round(output[0].length/5)]
                 if (prob > 0.7) {
-                    //console.log(i)
-                    //console.log("Bounding box: " + bbox + ", Probability of containing larvae: " + prob)
                     let bboxs = [[bbox[0][1]-Math.round(bbox[1][1]/2) + start_y, bbox[0][0]-Math.round(bbox[1][0]/2) + start_x], [bbox[0][1]+Math.round(bbox[1][1]/2) + start_y, bbox[0][0]+Math.round(bbox[1][0]/2) + start_x]]
                     //let cropped_frame1 = tf.slice3d(tensored_frame, [bboxs[0][0], bboxs[0][1], 0], [bboxs[1][0]-bboxs[0][0], bboxs[1][1]-bboxs[0][1], 3])
                     //cropped_frame1 = cropped_frame1.resizeBilinear([48, 48])
@@ -71,13 +72,10 @@ export async function getBBoxes(frame: tf.TypedArray, image_shape: [number, numb
             var bbox2 = out_bboxes[j]
             var area_1 = ((bbox1[1][0]-bbox1[0][0]) * (bbox1[1][1]-bbox1[0][1]))
             var area_2 = ((bbox2[1][0]-bbox2[0][0]) * (bbox2[1][1]-bbox2[0][1]))
-            var intersection_bbox = [[Math.max(bbox1[0][0], bbox2[0][0]), Math.max(bbox1[0][1], bbox2[0][1])], [Math.min(bbox1[0][0], bbox2[0][0]), Math.min(bbox1[0][1], bbox2[0][1])]]
+            var intersection_bbox = [[Math.max(bbox1[0][0], bbox2[0][0]), Math.max(bbox1[0][1], bbox2[0][1])], [Math.min(bbox1[1][0], bbox2[1][0]), Math.min(bbox1[1][1], bbox2[1][1])]]
             var area_3 = ((intersection_bbox[1][0]-intersection_bbox[0][0]) * (intersection_bbox[1][1]-intersection_bbox[0][1]))
             if ((intersection_bbox[1][0] < intersection_bbox[0][0]) || (intersection_bbox[1][1] < intersection_bbox[0][1])) {
                 area_3 = 0
-            }
-            else {
-                //console.log(area_3)
             }
             if (area_3 > Math.min(area_1, area_2) * 0.5) {
                 var new_box = [[Math.min(bbox1[0][0], bbox2[0][0]), Math.min(bbox1[0][1], bbox2[0][1])], [Math.max(bbox1[0][0], bbox2[0][0]), Math.max(bbox1[0][1], bbox2[0][1])]]
@@ -86,11 +84,10 @@ export async function getBBoxes(frame: tf.TypedArray, image_shape: [number, numb
                 removed.push(j)
             }
         }
-        if (!(i in removed)) {
+        if (!removed.includes(i)) {
             new_bboxes.push(out_bboxes[i])
         }
 
     }
-    console.log(new_bboxes)
-    return 0;
+    return new_bboxes;
 }

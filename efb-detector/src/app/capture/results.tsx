@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { getImageUri, useBeeStore as useStore } from "@/store/useBeeStore";
 
 const screenWidth = Dimensions.get("window").width;
@@ -72,7 +73,7 @@ export default function ResultsScreen() {
       : "—";
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ title: "Latest Result" }} />
 
       <ScrollView
@@ -97,7 +98,7 @@ export default function ResultsScreen() {
             <View
               style={[styles.confidenceBadge, { borderColor: confidenceColor }]}
             >
-              <Text style={styles.confidenceLabel}>Varroa Confidence</Text>
+              <Text style={styles.confidenceLabel}>EFB Confidence</Text>
               <Text
                 style={[styles.confidenceValue, { color: confidenceColor }]}
               >
@@ -121,16 +122,10 @@ export default function ResultsScreen() {
               />
             </View>
             <TouchableOpacity
-              style={styles.renameButton}
-              onPress={openEditModal}
-            >
-              <Text style={styles.renameButtonText}>✎ Rename This Scan</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
               style={styles.continueButton}
               onPress={() => router.replace("/(tabs)")}
             >
-              <Text style={styles.continueButtonText}>Continue →</Text>
+              <Text style={styles.continueButtonText}>← Back to Home</Text>
             </TouchableOpacity>
           </>
         )}
@@ -172,7 +167,7 @@ export default function ResultsScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 function Row({
@@ -204,9 +199,8 @@ function Row({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: "#fff",
     alignItems: "center",
-    paddingTop: 60,
   },
   scrollContent: {
     alignItems: "center",
@@ -303,20 +297,6 @@ const styles = StyleSheet.create({
   metaValueEditable: {
     color: "#E3892B",
     textDecorationLine: "underline",
-  },
-  renameButton: {
-    backgroundColor: "#F6C24E",
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 10,
-    alignItems: "center",
-    width: "100%",
-    marginBottom: 12,
-  },
-  renameButtonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 15,
   },
   continueButton: {
     backgroundColor: "#E3892B",

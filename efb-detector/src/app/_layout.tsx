@@ -1,6 +1,12 @@
+import { useEffect } from "react";
 import { Stack } from "expo-router";
+import { preloadModels } from "@/services/mlService";
 
 export default function RootLayout() {
+  useEffect(() => {
+    preloadModels();
+  }, []);
+
   return (
     <Stack
       screenOptions={{

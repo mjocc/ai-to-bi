@@ -2,6 +2,7 @@ import { IconSymbol } from "@/components/icon-symbol";
 import { Link } from "expo-router";
 import React, { useEffect } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useBeeStore as useStore } from "@/store/useBeeStore";
 
 export default function HivesScreen() {
@@ -45,7 +46,7 @@ export default function HivesScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Your Hives</Text>
       <FlatList
         data={hives}
@@ -58,16 +59,15 @@ export default function HivesScreen() {
           </Text>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#fff",
     paddingHorizontal: 20,
-    marginTop: 30,
   },
   title: {
     fontSize: 28,
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingRight: 10,
   },
-  hiveName: { fontSize: 18, fontWeight: "600", color: "#333" },
+  hiveName: { fontSize: 18, fontWeight: "600", color: "#E3892B" },
   date: { fontSize: 14, color: "#888", marginTop: 4 },
   empty: { textAlign: "center", marginTop: 50, color: "#999" },
 });

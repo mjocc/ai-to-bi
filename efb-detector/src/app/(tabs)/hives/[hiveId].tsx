@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LineChart } from "react-native-chart-kit";
 import { getImageUri, useBeeStore as useStore } from "@/store/useBeeStore";
 
@@ -254,7 +255,7 @@ export default function HiveScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <Stack.Screen options={{ title: `Hive ${hiveNo}` }} />
 
       {/* Chart view */}
@@ -291,20 +292,22 @@ export default function HiveScreen() {
           )}
 
           {/* Data management buttons */}
-          <View style={styles.clearButtonRow}>
-            <TouchableOpacity
-              style={styles.clearOldestButton}
-              onPress={clearOldestScan}
-            >
-              <Text style={styles.clearButtonText}>Clear Oldest</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.clearAllButton}
-              onPress={clearAllScans}
-            >
-              <Text style={styles.clearButtonText}>Clear All</Text>
-            </TouchableOpacity>
-          </View>
+          {chartData.datasets[0].data.length > 0 && (
+            <View style={styles.clearButtonRow}>
+              <TouchableOpacity
+                style={styles.clearOldestButton}
+                onPress={clearOldestScan}
+              >
+                <Text style={styles.clearButtonText}>Clear Oldest</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.clearAllButton}
+                onPress={clearAllScans}
+              >
+                <Text style={styles.clearButtonText}>Clear All</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
       )}
 
@@ -505,14 +508,13 @@ export default function HiveScreen() {
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 60,
     alignItems: "center",
   },
   title: {
@@ -531,10 +533,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 2,
-    backgroundColor: "red",
+    backgroundColor: "#D9534F",
   },
   warningText: {
-    color: "red",
+    color: "#D9534F",
     fontWeight: "700",
     fontSize: 13,
     textAlign: "center",
@@ -583,7 +585,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   imageConfidenceWarning: {
-    color: "red",
+    color: "#D9534F",
     fontWeight: "700",
   },
   deleteCardButton: {
@@ -772,7 +774,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E0E0E0",
     borderRadius: 10,
     padding: 4,
-    marginBottom: 30,
+    marginBottom: 16,
   },
   toggleButton: {
     paddingVertical: 8,

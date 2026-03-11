@@ -1,35 +1,29 @@
 import { Link, useFocusEffect, useRouter } from "expo-router";
-import { Accelerometer } from "expo-sensors";
-import { useCallback, useRef, useEffect } from "react";
+import { useCallback, useRef } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-
-import { test } from "@/services/locate_larvae_test";
+import { VolumeManager } from "react-native-volume-manager";
 
 export default function Index() {
   const router = useRouter();
-  const lastShake = useRef(0);
+  const lastPress = useRef(0);
 
   useFocusEffect(
     useCallback(() => {
-      Accelerometer.setUpdateInterval(100);
-      const subscription = Accelerometer.addListener(({ x, y, z }) => {
-        const magnitude = Math.sqrt(x * x + y * y + z * z);
+      VolumeManager.showNativeVolumeUI({ enabled: false });
+
+      const subscription = VolumeManager.addVolumeListener(() => {
         const now = Date.now();
-        if (magnitude > 1.8 && now - lastShake.current > 1000) {
-          lastShake.current = now;
+        if (now - lastPress.current > 300) {
+          lastPress.current = now;
           router.push("/capture");
         }
       });
+
       return () => {
+        VolumeManager.showNativeVolumeUI({ enabled: true });
         subscription.remove();
       };
     }, [])
-  );
-
-  useEffect(
-    () => () => {
-      test();
-    }
   );
 
   return (
@@ -51,9 +45,9 @@ export default function Index() {
         </Pressable>
       </Link>
 
-      <Text style={styles.shakeNote}>
-        Tip: You can also shake the device to start a scan.
-      </Text>
+      <View style={styles.tipPill}>
+        <Text style={styles.tipText}>📢 Press a volume button to start a scan</Text>
+      </View>
 
       <Link href="/capture/efbInfo" asChild>
         <Pressable style={styles.linkContainer}>
@@ -95,8 +89,8 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 40,
     borderRadius: 30,
-    elevation: 3, // Android shadow
-    shadowColor: "#000", // iOS shadow
+    elevation: 3,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -106,10 +100,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
-  shakeNote: {
-    color: "#666",
-    marginTop: 15,
-    fontSize: 14,
+  tipPill: {
+    marginTop: 20,
+    backgroundColor: "#FFF3D6",
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "#F6C24E",
+  },
+  tipText: {
+    color: "#B8760A",
+    fontSize: 13,
+    fontWeight: "500",
   },
   linkContainer: {
     marginTop: 20,
