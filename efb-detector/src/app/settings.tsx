@@ -10,6 +10,7 @@ export default function SettingsScreen() {
       <Stack.Screen
         options={{
           title: "Settings",
+          headerBackTitle: "Back",
         }}
       />
 
