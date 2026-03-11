@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import RNFS from "react-native-fs";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { useBeeStore } from "@/store/useBeeStore";
 import { runMLPipeline } from "@/services/mlService";
 import { VolumeManager } from "react-native-volume-manager";
@@ -88,6 +89,7 @@ export default function CaptureScreen() {
 
   const processPipeline = async (photos: CameraCapturedPicture[]) => {
     try {
+      console.log("Starting ML pipeline with photos:", photos);
       const scansDir = `${RNFS.DocumentDirectoryPath}/scans`;
       const date = new Date();
       const dateStr = date.toLocaleDateString();
@@ -114,6 +116,7 @@ export default function CaptureScreen() {
         });
         imageIds.push(imageId);
 
+        console.log("Calling runMLPipeline for image:", fileName);
         const confidence = await runMLPipeline(
           photo.uri,
           photo.width,
@@ -122,10 +125,19 @@ export default function CaptureScreen() {
         confidences.push(confidence);
       }
 
+      const maxIndex = confidences.indexOf(Math.max(...confidences));
+      for (let i = 0; i < imageIds.length; i++) {
+        if (i === maxIndex) continue;
+        addScan({
+          HiveNo: hiveNo,
+          ImageID: imageIds[i],
+          Confidence: confidences[i],
+        });
+      }
       addScan({
         HiveNo: hiveNo,
-        ImageID: imageIds[0],
-        Confidence: Math.max(...confidences),
+        ImageID: imageIds[maxIndex],
+        Confidence: confidences[maxIndex],
       });
 
       router.replace("/capture/results");
@@ -140,7 +152,31 @@ export default function CaptureScreen() {
     const photo = await cameraRef.current.takePictureAsync();
     if (!photo) return;
 
-    const newPhotos = [...capturedPhotos, photo];
+    // Resize image to max 1280 on the longest side to prevent Out-Of-Memory errors
+    const maxDim = 1280;
+    let resizeAction = {};
+    if (photo.width > photo.height && photo.width > maxDim) {
+      resizeAction = { width: maxDim };
+    } else if (photo.height >= photo.width && photo.height > maxDim) {
+      resizeAction = { height: maxDim };
+    }
+
+    let processedPhoto = photo;
+    if (Object.keys(resizeAction).length > 0) {
+      const manipResult = await manipulateAsync(
+        photo.uri,
+        [{ resize: resizeAction }],
+        { compress: 0.9, format: SaveFormat.JPEG }
+      );
+      processedPhoto = {
+        ...photo,
+        uri: manipResult.uri,
+        width: manipResult.width,
+        height: manipResult.height,
+      };
+    }
+
+    const newPhotos = [...capturedPhotos, processedPhoto];
     if (newPhotos.length < 4) {
       setCapturedPhotos(newPhotos);
       setQuadrantIndex(newPhotos.length);
@@ -322,7 +358,7 @@ const styles = StyleSheet.create({
   quadrantGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    width: CELL_SIZE * 2,
+    width: CELL_SIZE * 2 + 4,
     borderRadius: 6,
     overflow: "hidden",
     borderWidth: 2,

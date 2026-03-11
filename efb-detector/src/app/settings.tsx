@@ -40,7 +40,7 @@ export default function SettingsScreen() {
       <View style={styles.creditItem}>
         <Text style={styles.label}>Honeybee Hero Image</Text>
         <Text style={styles.smallText}>
-          "202203 western honey bee.svg" by DataBase Center for Life Science
+          &quot;202203 western honey bee.svg&quot; by DataBase Center for Life Science
           (DBCLS)
         </Text>
         <Text

@@ -75,7 +75,7 @@ export default function EFBInfoScreen() {
           }
         >
           <Text style={styles.infoLinkText}>
-            "Foulbrood Disease of Honey Bees" advisory leaflet (APHA/NBU) →
+            &quot;Foulbrood Disease of Honey Bees&quot; advisory leaflet (APHA/NBU) →
           </Text>
         </Pressable>
 
