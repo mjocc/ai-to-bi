@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   quadrantGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    width: CELL_SIZE * 2,
+    width: CELL_SIZE * 2 + 4,
     borderRadius: 6,
     overflow: "hidden",
     borderWidth: 2,
