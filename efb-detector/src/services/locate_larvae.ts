@@ -6,7 +6,7 @@ let locatorModel: TensorflowModel | null = null;
 
 export async function preloadLocatorModel(): Promise<void> {
   locatorModel = await loadTensorflowModel(
-    require('../../assets/models/larvae_locator_float16.tflite')
+    require('../../assets/models/larvae_locator_float32.tflite')
   );
 }
 
