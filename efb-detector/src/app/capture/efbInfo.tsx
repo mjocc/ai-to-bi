@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import React from "react";
 import {
   Alert,
@@ -12,6 +12,7 @@ import {
 import { useBeeStore } from "../../store/useBeeStore";
 
 export default function EFBInfoScreen() {
+  const router = useRouter();
   const { bkaEmail } = useBeeStore();
 
   const handleEmailNBU = () => {
@@ -42,7 +43,17 @@ export default function EFBInfoScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Stack.Screen options={{ headerShadowVisible: false, title: "" }} />
+      <Stack.Screen
+        options={{
+          headerShadowVisible: false,
+          title: "",
+          headerLeft: () => (
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </Pressable>
+          ),
+        }}
+      />
 
       <View style={styles.content}>
         <Text style={styles.warningTitle}>EFB Suspected?</Text>
@@ -108,6 +119,8 @@ export default function EFBInfoScreen() {
 }
 
 const styles = StyleSheet.create({
+  backButton: { paddingVertical: 4, paddingRight: 12 },
+  backButtonText: { color: "#E9B44C", fontSize: 16, fontWeight: "600" },
   container: { flex: 1, backgroundColor: "#fff" },
   content: { padding: 20, paddingTop: 0 },
   warningTitle: {

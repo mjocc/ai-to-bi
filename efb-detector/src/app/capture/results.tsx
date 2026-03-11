@@ -111,6 +111,31 @@ export default function ResultsScreen() {
                 </Text>
               )}
             </View>
+            <TouchableOpacity
+              style={[
+                styles.efbLink,
+                latestScan.Confidence > THRESHOLD
+                  ? styles.efbLinkWarning
+                  : styles.efbLinkSubtle,
+              ]}
+              onPress={() => router.push("/capture/efbInfo")}
+              activeOpacity={0.7}
+            >
+              {latestScan.Confidence > THRESHOLD ? (
+                <>
+                  <Text style={styles.efbLinkWarningText}>
+                    What should I do now?
+                  </Text>
+                  <Text style={styles.efbLinkWarningSubtext}>
+                    Tap for EFB guidance and reporting contacts
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.efbLinkSubtleText}>
+                  Learn more about EFB →
+                </Text>
+              )}
+            </TouchableOpacity>
             <View style={styles.metaCard}>
               <Row label="Hive" value={`#${latestScan.HiveNo}`} />
               <Row label="Date" value={latestImage.DateTaken} />
@@ -260,6 +285,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#D9534F",
     textAlign: "center",
+  },
+  efbLink: {
+    width: "100%",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  efbLinkWarning: {
+    backgroundColor: "#FDF0F0",
+    borderWidth: 1.5,
+    borderColor: "#D9534F",
+  },
+  efbLinkWarningText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#D9534F",
+  },
+  efbLinkWarningSubtext: {
+    fontSize: 12,
+    color: "#B94440",
+    marginTop: 4,
+  },
+  efbLinkSubtle: {
+    backgroundColor: "#FFF8ED",
+    borderWidth: 1,
+    borderColor: "#E9B44C",
+  },
+  efbLinkSubtleText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#E3892B",
   },
   metaCard: {
     width: "100%",
