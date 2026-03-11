@@ -1,5 +1,5 @@
-import { useNavigation } from "@react-navigation/native";
 import { Stack, useRouter } from "expo-router";
+import { useNavigation } from "@react-navigation/native";
 import React from "react";
 import {
   Alert,
@@ -48,7 +48,7 @@ export default function EFBInfoScreen() {
       <Stack.Screen
         options={{
           headerShadowVisible: false,
-          ...(!navigation.canGoBack() && {
+          ...(navigation.getState().index === 0 && {
             headerLeft: () => (
               <Pressable onPress={() => router.back()}>
                 <Text style={{ color: "#E9B44C", fontSize: 16, fontWeight: "600" }}>
