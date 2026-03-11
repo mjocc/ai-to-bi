@@ -52,7 +52,7 @@ export default function EFBInfoScreen() {
             headerLeft: () => (
               <Pressable onPress={() => router.back()}>
                 <Text style={{ color: "#E9B44C", fontSize: 16, fontWeight: "600" }}>
-                  Close
+                  Back
                 </Text>
               </Pressable>
             ),
