@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import RNFS from "react-native-fs";
 import { useBeeStore } from "@/store/useBeeStore";
 import { runMLPipeline } from "@/services/mlService";
+import { VolumeManager } from "react-native-volume-manager";
 
 const QUADRANT_LABELS = [
   "Top Left",
@@ -40,10 +41,29 @@ export default function CaptureScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const lastVolumePress = useRef(0);
+  const handleCaptureRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     initializeData();
   }, []);
+
+  useEffect(() => {
+    VolumeManager.showNativeVolumeUI({ enabled: false });
+
+    const subscription = VolumeManager.addVolumeListener(() => {
+      const now = Date.now();
+      if (now - lastVolumePress.current > 300) {
+        lastVolumePress.current = now;
+        handleCaptureRef.current();
+      }
+    });
+
+    return () => {
+      VolumeManager.showNativeVolumeUI({ enabled: true });
+      subscription.remove();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isProcessing) return;
@@ -130,6 +150,7 @@ export default function CaptureScreen() {
       processPipeline(newPhotos);
     }
   };
+  handleCaptureRef.current = handleCapture;
 
   if (!permission) return <View style={styles.center} />;
 
