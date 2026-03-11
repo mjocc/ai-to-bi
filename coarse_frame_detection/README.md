@@ -1,87 +1,63 @@
-Beehive Frame Detection — Minimal Inference README
+# Beehive Frame Detection — Inference
 
-Purpose
--------
-This repository contains a minimal, runnable subset of a beehive frame detection project focused on inference (detecting beehive frames in images and videos). Large datasets, training artifacts, and developer cruft have been removed to keep the repo small and focused on running detection with a pretrained model.
+This is a trimmed-down version of the frame detection project, just the inference side. The dataset, training scripts, and anything else that wasn't needed for running the model have been removed to keep it small.
 
-
-
-Quick setup (macOS / zsh)
--------------------------
-1. Create and activate a fresh virtual environment
+## Setup
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-```
-
-2. Upgrade pip and install dependencies
-
-```bash
-python -m pip install --upgrade pip
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-3. (Optional) If you don't want to install full TensorFlow on your machine, you can run inference on another machine or a container with TF available.
+If you don't want to install TensorFlow locally, you can run it on another machine or in a container — the scripts don't need anything beyond what's in `requirements.txt`.
 
-Basic usage
------------
-Run fast single/batch image inference (prints JSON results):
+## Basic usage
+
+Run inference on one or more images:
 
 ```bash
-# Single or multiple images
 python fast_inference.py --image path/to/image.jpg
 python fast_inference.py --image a.jpg b.jpg c.jpg
-
-# Verbose output (more fields)
 python fast_inference.py --image path/to/image.jpg --verbose
-
-# Interactive REPL (keep the model loaded for many queries)
-python fast_inference.py --interactive
+python fast_inference.py --interactive   # keeps the model loaded, type paths one by one
 ```
 
-Video inference (process frames and optionally save annotated video or JSON):
+Run inference on a video:
 
 ```bash
-# Process every frame, save annotated video
+# annotated output video
 python video_inference.py input.mp4 output_annotated.mp4
 
-# Save results to JSON instead of an annotated video
+# save detections to JSON instead
 python video_inference.py input.mp4 --json output.json
 
-# Skip frames (process 1 every N frames)
+# only process every other frame
 python video_inference.py input.mp4 output.mp4 --sample 2
 ```
 
-What the outputs look like
--------------------------
-- `fast_inference.py` prints a JSON mapping of input file to detection result(s). Each result contains:
-  - `has_frame` (boolean)
-  - `confidence` (float 0..1)
-  - `bbox` with `x,y,width,height` and normalized coords
-  - `flags` (dictionary of quality flags like `is_blurred`, `is_too_small`, etc.)
-  - `zoom` recommendations in some utility outputs
+## Output format
 
-- `video_inference.py` can produce:
-  - An annotated MP4 with bounding boxes and labels.
-  - A JSON file with per-frame detections.
+`fast_inference.py` prints JSON. Each result has:
+- `has_frame` — whether a frame was detected
+- `confidence` — model confidence (0–1)
+- `bbox` — x, y, width, height in pixels plus normalized versions
+- `flags` — quality issues like `is_blurred`, `is_too_small`, etc.
+- `zoom` — rough zoom recommendation
 
-Config and model location
--------------------------
-- The repository expects the model to be under `models/frame_detector/`. That directory currently contains checkpoint files (`checkpoint.keras`, `checkpoint.h5`, `model.h5`) and a `saved_model/` export.
-- You can override the model directory when running `fast_inference.py` with `--model-dir /path/to/model_dir`.
-- If you prefer to use the top-level `test_model.keras`, you can move or copy it into `models/frame_detector/` or change `fast_inference.py` to load it directly.
+`video_inference.py` can write an annotated MP4 and/or a JSON file with per-frame results.
 
-Notes about training
---------------------
-- The original preprocessing and training scripts and the large dataset were removed to keep the repo small. If you want to re-train or re-generate `processed_dataset/`, I'll need to restore `preprocess_data.py` and `train_frame_detector.py` (I can re-add them on request or you can pull them from your git history/backups).
+## Model location
 
-Troubleshooting
----------------
-- ``ModuleNotFoundError`` or import errors: ensure you activated the virtualenv and installed dependencies.
-- TensorFlow install issues on macOS: prefer `pip install tensorflow-macos` (Apple Silicon) or `pip install tensorflow` (x86). The pinned versions in `requirements.txt` are a reference — you may need platform-specific variants.
-- If `fast_inference.py` fails with "No model checkpoint found": verify `models/frame_detector` contains a compatible model file (`checkpoint.keras`, `model.h5` or a SavedModel directory). Use `--model-dir` to point to the correct path.
+The model should be in `models/frame_detector/`. It looks for `checkpoint.keras`, `checkpoint.h5`, `model.h5`, or a `saved_model/` directory in that order. You can point to a different directory with `--model-dir`.
 
+## Notes on training
 
+Training scripts and the dataset aren't included here to keep the repo small. If you need to retrain, `preprocess_data.py` and `train_frame_detector.py` can be pulled back from git history.
 
+## Troubleshooting
 
+- **Import errors** — make sure you activated the venv and ran `pip install -r requirements.txt`
+- **TensorFlow on macOS** — use `tensorflow-macos` on Apple Silicon or `tensorflow` on x86; the pinned versions in `requirements.txt` are just a reference
+- **"No model checkpoint found"** — check that `models/frame_detector/` has a model file, or pass `--model-dir` to point to the right place

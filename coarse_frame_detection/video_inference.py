@@ -59,7 +59,7 @@ def process_video(video_path, output_path=None, json_path=None, sample_every=1):
             # Convert BGR to RGB
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
-            # Prepare a scaled array compatible with the model input
+            # resize to model input size
             img_h, img_w = CONFIG.get('img_height', 224), CONFIG.get('img_width', 224)
             frame_resized = cv2.resize(frame_rgb, (img_w, img_h))
             frame_array = frame_resized.astype(np.float32) / 255.0
@@ -74,8 +74,7 @@ def process_video(video_path, output_path=None, json_path=None, sample_every=1):
             
             x_norm, y_norm, w_norm, h_norm = bbox_pred[0]
             
-            # Convert normalized bbox coordinates back to pixels in the
-            # original video frame.
+            # convert normalized coords back to pixels
             x = int(x_norm * width)
             y = int(y_norm * height)
             w = int(w_norm * width)
@@ -133,18 +132,17 @@ def process_video(video_path, output_path=None, json_path=None, sample_every=1):
                 
                 # Draw bounding box
                 if r['has_frame']:
-                    color = (0, 255, 0)  # Green for frame
+                    color = (0, 255, 0)  # green for frame detected
                     cv2.rectangle(frame, (r['bbox']['x'], r['bbox']['y']), 
                                   (r['bbox']['x'] + r['bbox']['width'], 
                                    r['bbox']['y'] + r['bbox']['height']), 
                                   color, 2)
                     
-                    # Add label
                     label = f"FRAME {r['confidence']:.0%}"
                     cv2.putText(frame, label, (r['bbox']['x'], r['bbox']['y'] - 10),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
                 else:
-                    color = (0, 0, 255)  # Red for no frame
+                    color = (0, 0, 255)  # red for no frame
                     label = f"NO FRAME {r['confidence']:.0%}"
                     cv2.putText(frame, label, (10, 30),
                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
@@ -162,12 +160,12 @@ def process_video(video_path, output_path=None, json_path=None, sample_every=1):
     frames_with_frame = sum(1 for r in results if r['has_frame'])
     print(f"\nSummary: {frames_with_frame}/{len(results)} frames had frames detected")
     
-    # Find the best frame (first frame with frame detected and no quality issues)
+    # grab the first clean (non-blurry) frame with a detection
     best_frame = None
     for r in results:
         if r['has_frame']:
             flags = r.get('flags', {})
-            # First non-blurred frame
+            # skip blurry frames
             if not flags.get('is_blurred', False):
                 best_frame = r
                 break

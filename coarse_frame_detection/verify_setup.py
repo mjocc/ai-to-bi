@@ -17,13 +17,13 @@ BLUE = '\033[94m'
 RESET = '\033[0m'
 
 def print_header(text):
-    """Print a centered, colored header for console output."""
+    """Print a section header to the console."""
     print(f"\n{BLUE}{'=' * 70}{RESET}")
     print(f"{BLUE}{text.center(70)}{RESET}")
     print(f"{BLUE}{'=' * 70}{RESET}\n")
 
 def check_directory(path, name):
-    """Return (exists, image_count) and print a short status message."""
+    """Return (exists, image_count) for the given directory and print a status line."""
     if not os.path.exists(path):
         print(f"{RED}✗{RESET} {name}: NOT FOUND")
         print(f"  Expected: {path}")
@@ -47,7 +47,7 @@ def check_directory(path, name):
     return True, image_count
 
 def check_python_packages():
-    """Try importing a short list of packages and report any that are missing."""
+    """Try importing each required package and report any that are missing."""
     required_packages = [
         'tensorflow',
         'numpy',
@@ -75,17 +75,14 @@ def check_python_packages():
     return len(missing) == 0, missing
 
 def main():
-    """Main verification"""
     print_header("Beehive Frame Detection - Setup Verification")
     
-    # Dataset paths
     DATASET_BASE = "/Users/sophiachan/Desktop/Cambridge/1B/Ticks/AI_TO_BI"
     FRAME_PRESENT = os.path.join(DATASET_BASE, "frame_present")
     FRAME_NOT_PRESENT = os.path.join(DATASET_BASE, "frame_not_present")
     
     all_checks_passed = True
     
-    #  Check dataset directories
     print(f"{BLUE}1. Checking Dataset Directories{RESET}")
     print("-" * 70)
 
@@ -110,7 +107,6 @@ def main():
         print(f"\n{YELLOW}⚠ WARNING:{RESET} Only {total_images} total images found.")
         print(f"  Recommended: At least 100 images (50+ per class) for good results.")
 
-    #Check Python packages
     print(f"\n{BLUE}2. Checking Python Dependencies{RESET}")
     print("-" * 70)
 

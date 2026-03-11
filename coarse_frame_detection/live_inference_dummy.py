@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
 """
-Small webcam demo that mimics the frame detector without TensorFlow.
+Dummy webcam script for testing the pipeline without needing the actual model.
 
-This is a lightweight heuristic used mainly for integration tests or to
-exercise the video capture and drawing code. It looks for the largest contour
-in the frame, checks blur via Laplacian variance, and accepts bounding boxes
-within configurable size ratios.
-
-Example:
-    python3 live_inference_dummy.py --camera 0 --show
+Uses simple heuristics (blur, contour size) to decide if a frame looks good
+enough to save. Useful for testing the capture/drawing code without TensorFlow.
 """
 
 import cv2
@@ -19,12 +14,12 @@ from pathlib import Path
 
 
 def is_blurry(gray, thresh):
-    """Return True if the image is likely blurry based on Laplacian variance."""
+    """Return True if the image looks blurry (Laplacian variance below thresh)."""
     return cv2.Laplacian(gray, cv2.CV_64F).var() < thresh
 
 
 def find_largest_rect(contours):
-    """Return the contour with the largest area and that area value."""
+    """Find the contour with the biggest area and return it along with the area."""
     best = None
     best_area = 0
     for c in contours:
@@ -39,8 +34,7 @@ def main():
     parser = argparse.ArgumentParser(description='Dummy live inference (webcam)')
     parser.add_argument('--camera', default=0, help='Camera index or video path')
     parser.add_argument('--show', action='store_true', help='Show preview window')
-    # Tunable thresholds. Defaults are intentionally lenient to reduce false
-    # negatives during simple testing.
+    # Tunable thresholds. Defaults are lenient so it doesn't reject too much.
     parser.add_argument('--blur-threshold', type=float, default=40.0,
                         help='Variance of Laplacian below which an image is considered blurry (lower = less sensitive)')
     parser.add_argument('--min-ratio', type=float, default=0.1,
@@ -68,8 +62,7 @@ def main():
         h, w = frame.shape[:2]
         image_area = h * w
 
-        # Convert to grayscale, check blur, and find contours to locate a
-        # candidate rectangle.
+        # grayscale, blur check, then edge detection to find a candidate bbox
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         blur_flag = is_blurry(gray, args.blur_threshold)
         edges = cv2.Canny(gray, 50, 150)
@@ -80,8 +73,7 @@ def main():
         size_ratio = 0.0
         rect_quality = 0.0
 
-        # Allow small contours (low threshold) so simple scenes still produce
-        # candidates during tests.
+        # low area threshold so small contours still get considered
         if best_contour is not None and best_area > 50:
             x, y, bw, bh = cv2.boundingRect(best_contour)
             bbox = (x, y, bw, bh)
@@ -93,7 +85,6 @@ def main():
             bbox_area = bw * bh
             rect_quality = contour_area / bbox_area if bbox_area > 0 else 0.0
 
-            # Decide if this is a "good" frame
             is_good = False
             reasons = []
             if blur_flag:
@@ -105,14 +96,14 @@ def main():
                     reasons.append('too_small')
                 elif size_ratio > args.max_ratio:
                     reasons.append('too_large')
-                # Relax rect quality requirement to be less strict (allow looser contours)
+                # 0.4 seems like a reasonable cutoff for rect quality
                 if rect_quality < 0.4:
                     reasons.append('poor_rect')
 
             if not reasons:
                 is_good = True
 
-            # Draw overlays
+            # draw bounding box and status text on a copy of the frame
             vis = frame.copy()
             if bbox:
                 x, y, bw, bh = bbox
@@ -130,7 +121,6 @@ def main():
                     break
 
             if is_good:
-                # Save the frame and exit
                 out_path = Path('best_frame_webcam.jpg')
                 cv2.imwrite(str(out_path), frame)
                 elapsed = time.time() - start
