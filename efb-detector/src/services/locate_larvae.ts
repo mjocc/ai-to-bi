@@ -33,7 +33,7 @@ export async function getBBoxes(tensored_frame: tf.Tensor3D) {
       }
 
       const cropped = tf.slice3d(tensored_frame, [start_y, start_x, 0], [640, 640, 3]);
-      const data = await cropped.data();
+      const data = (await cropped.data()).slice();
       cropped.dispose();
 
       console.log("Started locate_larvae run");

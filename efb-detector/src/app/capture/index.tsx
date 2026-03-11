@@ -13,7 +13,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RNFS from "react-native-fs";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { useBeeStore } from "@/store/useBeeStore";
@@ -34,6 +34,7 @@ export default function CaptureScreen() {
   const cameraRef = useRef<CameraView>(null);
   const { addImage, addScan, initializeData } = useBeeStore();
 
+  const insets = useSafeAreaInsets();
   const [hiveNo, setHiveNo] = useState(1);
   const [quadrantIndex, setQuadrantIndex] = useState(0);
   const [capturedPhotos, setCapturedPhotos] = useState<CameraCapturedPicture[]>(
@@ -211,8 +212,8 @@ export default function CaptureScreen() {
         facing="back"
       />
 
-      <SafeAreaView style={styles.overlay} pointerEvents="box-none">
-        <View style={styles.topBar}>
+      <View style={styles.overlay} pointerEvents="box-none">
+        <View style={[styles.topBar, { paddingTop: insets.top + 12 }]}>
           <Pressable
             style={styles.backButton}
             onPress={() => !isProcessing && router.back()}
@@ -277,7 +278,7 @@ export default function CaptureScreen() {
             <View style={styles.captureInner} />
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
 
       {/* Processing overlay */}
       {isProcessing && (
@@ -304,7 +305,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
 
-  topBar: { padding: 20, alignItems: "flex-start" },
+  topBar: { paddingHorizontal: 20, paddingBottom: 12, alignItems: "flex-start" },
   backButton: {
     backgroundColor: "rgba(0,0,0,0.5)",
     paddingVertical: 8,

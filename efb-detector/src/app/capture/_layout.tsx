@@ -7,7 +7,7 @@ export default function CaptureLayout() {
       <Stack.Screen name="index" options={{ title: "Scan" }} />
       <Stack.Screen
         name="efbInfo"
-        options={{ title: "EFB Guidance", headerShown: true }}
+        options={{ title: "EFB Guidance", headerShown: true, headerBackTitle: "Back" }}
       />
       <Stack.Screen name="results" options={{ title: "Results" }} />
     </Stack>

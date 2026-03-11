@@ -53,7 +53,7 @@ export async function processImageWithBBoxes(
   const unstackedCrops = tf.unstack(crops, 0);
   const cropsData = await Promise.all(
     unstackedCrops.map(async (crop) => {
-      const data = await crop.data();
+      const data = (await crop.data()).slice();
       crop.dispose();
       return data;
     })
