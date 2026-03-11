@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import RNFS from "react-native-fs";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { useBeeStore } from "@/store/useBeeStore";
 import { runMLPipeline } from "@/services/mlService";
 import { VolumeManager } from "react-native-volume-manager";
@@ -151,7 +152,31 @@ export default function CaptureScreen() {
     const photo = await cameraRef.current.takePictureAsync();
     if (!photo) return;
 
-    const newPhotos = [...capturedPhotos, photo];
+    // Resize image to max 1280 on the longest side to prevent Out-Of-Memory errors
+    const maxDim = 1280;
+    let resizeAction = {};
+    if (photo.width > photo.height && photo.width > maxDim) {
+      resizeAction = { width: maxDim };
+    } else if (photo.height >= photo.width && photo.height > maxDim) {
+      resizeAction = { height: maxDim };
+    }
+
+    let processedPhoto = photo;
+    if (Object.keys(resizeAction).length > 0) {
+      const manipResult = await manipulateAsync(
+        photo.uri,
+        [{ resize: resizeAction }],
+        { compress: 0.9, format: SaveFormat.JPEG }
+      );
+      processedPhoto = {
+        ...photo,
+        uri: manipResult.uri,
+        width: manipResult.width,
+        height: manipResult.height,
+      };
+    }
+
+    const newPhotos = [...capturedPhotos, processedPhoto];
     if (newPhotos.length < 4) {
       setCapturedPhotos(newPhotos);
       setQuadrantIndex(newPhotos.length);

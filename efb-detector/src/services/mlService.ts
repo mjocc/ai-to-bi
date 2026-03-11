@@ -17,23 +17,25 @@ function preprocessImage(rawImageData: {
   height: number;
 }): tf.Tensor3D {
   const { data: rgba, width, height } = rawImageData;
-  const rgb = new Float32Array(width * height * 3);
-  let j = 0;
-  for (let i = 0; i < rgba.length; i += 4) {
-    rgb[j++] = rgba[i] / 255;
-    rgb[j++] = rgba[i + 1] / 255;
-    rgb[j++] = rgba[i + 2] / 255;
-  }
 
-  let tensor = tf.tensor3d(rgb, [height, width, 3], "float32");
-  const h = tensor.shape[0] as number;
-  const w = tensor.shape[1] as number;
-  const scale = Math.min(1, MAX_DIM / Math.max(h, w));
-  const newH = Math.max(Math.round(h * scale), 640);
-  const newW = Math.max(Math.round(w * scale), 640);
-  const resized = tensor.resizeBilinear([newH, newW]) as tf.Tensor3D;
-  tensor.dispose();
-  return resized;
+  return tf.tidy(() => {
+    // Create a 3D tensor from the flat RGBA array [height, width, 4]
+    // Note: tf.tensor3d is much faster than manual looping in JS
+    const rgbaTensor = tf.tensor3d(rgba, [height, width, 4], "int32");
+
+    // Slice to drop the alpha channel (last dimension) to get [height, width, 3]
+    const rgbTensor = rgbaTensor.slice([0, 0, 0], [height, width, 3]);
+
+    // Convert to float and normalize to [0, 1]
+    const normalized = rgbTensor.toFloat().div(tf.scalar(255.0));
+
+    // Resize to the internal MAX_DIM logic
+    const scale = Math.min(1, MAX_DIM / Math.max(height, width));
+    const newH = Math.max(Math.round(height * scale), 640);
+    const newW = Math.max(Math.round(width * scale), 640);
+
+    return normalized.resizeBilinear([newH, newW]) as tf.Tensor3D;
+  });
 }
 
 export async function runMLPipeline(
