@@ -1,4 +1,5 @@
-import { Stack } from "expo-router";
+import { useNavigation } from "@react-navigation/native";
+import { Stack, useRouter } from "expo-router";
 import React from "react";
 import {
   Alert,
@@ -13,6 +14,8 @@ import { useBeeStore } from "../../store/useBeeStore";
 
 export default function EFBInfoScreen() {
   const { bkaEmail } = useBeeStore();
+  const router = useRouter();
+  const navigation = useNavigation();
 
   const handleEmailNBU = () => {
     // TODO: ideally would also include images of the hive that we have stored
@@ -45,6 +48,15 @@ export default function EFBInfoScreen() {
       <Stack.Screen
         options={{
           headerShadowVisible: false,
+          ...(!navigation.canGoBack() && {
+            headerLeft: () => (
+              <Pressable onPress={() => router.back()}>
+                <Text style={{ color: "#E9B44C", fontSize: 16, fontWeight: "600" }}>
+                  Close
+                </Text>
+              </Pressable>
+            ),
+          }),
         }}
       />
 
