@@ -45,11 +45,17 @@ export async function processImageWithBBoxes(
 
   const results: number[] = [];
   for (const bbox of bboxes) {
-    const sliceH = bbox[1][1] - bbox[0][1];
-    const sliceW = bbox[1][0] - bbox[0][0];
+    const frameH = tensored_frame.shape[0] as number;
+    const frameW = tensored_frame.shape[1] as number;
+    const y1 = Math.max(0, bbox[0][1]);
+    const x1 = Math.max(0, bbox[0][0]);
+    const y2 = Math.min(frameH, bbox[1][1]);
+    const x2 = Math.min(frameW, bbox[1][0]);
+    const sliceH = y2 - y1;
+    const sliceW = x2 - x1;
     if (sliceH <= 0 || sliceW <= 0) continue;
 
-    const cropped = tf.slice3d(tensored_frame, [bbox[0][1], bbox[0][0], 0], [sliceH, sliceW, 3]);
+    const cropped = tf.slice3d(tensored_frame, [y1, x1, 0], [sliceH, sliceW, 3]);
     const resizedCrop = cropped.resizeBilinear([48, 48]);
     cropped.dispose();
     const data = await resizedCrop.data();

@@ -124,10 +124,19 @@ export default function CaptureScreen() {
         confidences.push(confidence);
       }
 
+      const maxIndex = confidences.indexOf(Math.max(...confidences));
+      for (let i = 0; i < imageIds.length; i++) {
+        if (i === maxIndex) continue;
+        addScan({
+          HiveNo: hiveNo,
+          ImageID: imageIds[i],
+          Confidence: confidences[i],
+        });
+      }
       addScan({
         HiveNo: hiveNo,
-        ImageID: imageIds[0],
-        Confidence: Math.max(...confidences),
+        ImageID: imageIds[maxIndex],
+        Confidence: confidences[maxIndex],
       });
 
       router.replace("/capture/results");
