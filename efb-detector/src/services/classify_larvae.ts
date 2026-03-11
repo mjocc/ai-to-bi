@@ -51,24 +51,31 @@ export async function processImageWithBBoxes(
 
   // Extract all tensor data asynchronously at once for parallel efficiency
   const unstackedCrops = tf.unstack(crops, 0);
-  const cropsData = await Promise.all(
-    unstackedCrops.map(async (crop) => {
-      const data = (await crop.data()).slice();
-      crop.dispose();
-      return data;
-    })
-  );
-  crops.dispose();
+  try {
+    const cropsData = await Promise.all(
+      unstackedCrops.map(async (crop) => {
+        const data = (await crop.data()).slice();
+        crop.dispose();
+        return data;
+      })
+    );
 
-  const results: number[] = [];
-  for (const data of cropsData) {
-    console.log("Starting classify_larvae run");
-    const output = await model.run([data]);
-    console.log("Finished classify_larvae run");
+    const results: number[] = [];
+    for (const data of cropsData) {
+      console.log("Starting classify_larvae run");
+      const output = await model.run([data]);
+      console.log("Finished classify_larvae run");
 
-    const prob = 1 / (1 + 2 ** (((output[0][1] as number) - (output[0][0] as number)) / 3));
-    results.push(prob);
+      const prob = 1 / (1 + 2 ** (((output[0][1] as number) - (output[0][0] as number)) / 3));
+      results.push(prob);
+    }
+
+    return results;
+  } catch (err) {
+    // Dispose any tensors that weren't disposed in the map
+    unstackedCrops.forEach((t) => { if (!t.isDisposed) t.dispose(); });
+    throw err;
+  } finally {
+    crops.dispose();
   }
-
-  return results;
 }

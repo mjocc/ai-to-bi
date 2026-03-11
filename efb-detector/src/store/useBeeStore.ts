@@ -152,10 +152,11 @@ export const useBeeStore = create<BeeState>()(
           const scansDir = new Directory(Paths.document, "scans");
           if (scansDir.exists) {
             scansDir.delete();
-            scansDir.create();
           }
+          scansDir.create();
         } catch (e) {
           console.error("Failed to clear scans directory:", e);
+          return;
         }
         set({ scans: [], images: [] });
       },

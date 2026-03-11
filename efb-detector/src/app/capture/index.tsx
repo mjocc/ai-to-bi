@@ -7,6 +7,7 @@ import { useRouter } from "expo-router";
 import React, { useRef, useState, useEffect } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Pressable,
   StyleSheet,
@@ -145,6 +146,12 @@ export default function CaptureScreen() {
     } catch (err) {
       console.error("ML pipeline error:", err);
       setIsProcessing(false);
+      setCapturedPhotos([]);
+      setQuadrantIndex(0);
+      Alert.alert(
+        "Analysis Failed",
+        "Something went wrong while analysing the photos. Please try again."
+      );
     }
   };
 
