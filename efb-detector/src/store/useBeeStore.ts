@@ -80,11 +80,24 @@ export const useBeeStore = create<BeeState>()(
           ),
         })),
 
-      deleteImage: (imageID) =>
+      deleteImage: (imageID) => {
+        const { images } = get();
+        const img = images.find(i => i.ImageID === imageID);
+        if (img) {
+          try {
+            const file = new File(new Directory(Paths.document, "scans"), img.ImageFileName);
+            if (file.exists) {
+              file.delete();
+            }
+          } catch (e) {
+            console.error("Failed to delete image file:", e);
+          }
+        }
         set((state) => ({
           images: state.images.filter((img) => img.ImageID !== imageID),
           scans: state.scans.filter((scan) => scan.ImageID !== imageID),
-        })),
+        }));
+      },
 
       getScansWithImageNames: () => {
         const { scans, images } = get();
@@ -134,7 +147,18 @@ export const useBeeStore = create<BeeState>()(
 
       setBkaEmail: (email) => set({ bkaEmail: email }),
 
-      clearHistory: () => set({ scans: [], images: [] }),
+      clearHistory: () => {
+        try {
+          const scansDir = new Directory(Paths.document, "scans");
+          if (scansDir.exists) {
+            scansDir.delete();
+            scansDir.create();
+          }
+        } catch (e) {
+          console.error("Failed to clear scans directory:", e);
+        }
+        set({ scans: [], images: [] });
+      },
     }),
     {
       name: "bee-storage",
